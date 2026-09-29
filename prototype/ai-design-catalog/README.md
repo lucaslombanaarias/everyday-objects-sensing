@@ -1,4 +1,6 @@
-# AI Design Catalog — Clickable Prototype
+# AI Design Catalog: Clickable Prototype
+
+This README covers only the AI Design Catalog prototype in this folder, not the rest of the repository.
 
 Static prototype for the UIUC ME 470 / Ubihealth Lab in-home sensing design catalog.
 
@@ -20,5 +22,5 @@ Open `index.html` directly in a browser, or run any static web server in this fo
 - Sensor-on indicator
 - Photo retention policy
 
-## Production implementation target
+## AI Design Catalog: production implementation target
 Next.js + TypeScript + Tailwind, Supabase for catalog/admin/auth/storage. Public users remain anonymous; curator/admin functions require authentication.
