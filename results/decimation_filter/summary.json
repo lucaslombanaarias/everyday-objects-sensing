@@ -1,0 +1,42 @@
+{
+  "48000": {
+    "spec": {
+      "fs_in": 48000,
+      "fs_out": 1500.0,
+      "passband_edge_hz": 500.0,
+      "stopband_edge_hz": 750.0,
+      "stopband_atten_db": 96.0,
+      "passband_ripple_db": 0.1
+    },
+    "decimation_factor": 32,
+    "cutoff_hz": 625.0,
+    "kaiserord_numtaps": 1179,
+    "kaiser_beta": 9.62046,
+    "edge_samples": 19,
+    "measured": {
+      "numtaps": 1209,
+      "passband_ripple_db": 0.0001428002652082137,
+      "stopband_atten_db": 96.06335978442631
+    }
+  },
+  "24000": {
+    "spec": {
+      "fs_in": 24000,
+      "fs_out": 1500.0,
+      "passband_edge_hz": 500.0,
+      "stopband_edge_hz": 750.0,
+      "stopband_atten_db": 96.0,
+      "passband_ripple_db": 0.1
+    },
+    "decimation_factor": 16,
+    "cutoff_hz": 625.0,
+    "kaiserord_numtaps": 591,
+    "kaiser_beta": 9.62046,
+    "edge_samples": 19,
+    "measured": {
+      "numtaps": 605,
+      "passband_ripple_db": 0.00014273224604793784,
+      "stopband_atten_db": 96.08960647065196
+    }
+  }
+}
