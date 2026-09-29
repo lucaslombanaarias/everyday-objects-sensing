@@ -2,8 +2,8 @@
 
 Run as ``python -m everyday_sensing.filter_report [--out-dir DIR]``. For each input
 rate it writes response_<fs_in>.csv (freq_hz, magnitude_db) and response_<fs_in>.png,
-plus one summary.json with the spec inputs, the kaiserord estimate and the measured
-response of the final design.
+plus one summary.json with the spec inputs, the kaiserord estimate, the measured
+response of the final design, and the Python, numpy and scipy versions that produced it.
 """
 
 from __future__ import annotations
@@ -11,10 +11,12 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import platform
 from dataclasses import asdict
 from pathlib import Path
 
 import numpy as np
+import scipy
 from matplotlib.figure import Figure
 from scipy import signal
 
@@ -161,7 +163,13 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
     args.out_dir.mkdir(parents=True, exist_ok=True)
 
-    summary = {}
+    summary = {
+        "generated_with": {
+            "python": platform.python_version(),
+            "numpy": np.__version__,
+            "scipy": scipy.__version__,
+        }
+    }
     for fs_in in INPUT_RATES_HZ:
         spec = FilterSpec(fs_in=fs_in)
         taps = design_decimation_filter(spec)

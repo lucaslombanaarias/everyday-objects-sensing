@@ -1,4 +1,9 @@
 {
+  "generated_with": {
+    "python": "3.14.7",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1"
+  },
   "48000": {
     "spec": {
       "fs_in": 48000,
@@ -16,7 +21,7 @@
     "measured": {
       "numtaps": 1209,
       "passband_ripple_db": 0.0001428002652082137,
-      "stopband_atten_db": 96.06335978442631
+      "stopband_atten_db": 96.06335978440946
     }
   },
   "24000": {
@@ -35,8 +40,8 @@
     "edge_samples": 19,
     "measured": {
       "numtaps": 605,
-      "passband_ripple_db": 0.00014273224604793784,
-      "stopband_atten_db": 96.08960647065196
+      "passband_ripple_db": 0.0001427322460469735,
+      "stopband_atten_db": 96.08960647064622
     }
   }
 }
