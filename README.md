@@ -1,5 +1,7 @@
 # everyday-objects-sensing
 
+AI Design Catalog prototype (live site): https://lucaslombanaarias.github.io/everyday-objects-sensing/
+
 ## everyday_sensing (Python package): Development
 
 These instructions are only for the `everyday_sensing` Python package in `src/everyday_sensing/`, not the rest of the repository.
