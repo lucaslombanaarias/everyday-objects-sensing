@@ -6,8 +6,6 @@ plus one summary.json with the spec inputs, the kaiserord estimate, the measured
 response of the final design, and the Python, numpy and scipy versions that produced it.
 """
 
-from __future__ import annotations
-
 import argparse
 import csv
 import json

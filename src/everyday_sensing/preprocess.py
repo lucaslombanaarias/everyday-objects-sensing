@@ -9,8 +9,6 @@ downsampling.
 Everything here operates on numpy arrays plus a sample rate; there is no file I/O.
 """
 
-from __future__ import annotations
-
 import functools
 import math
 from dataclasses import dataclass

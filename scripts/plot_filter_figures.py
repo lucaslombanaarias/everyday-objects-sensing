@@ -11,8 +11,6 @@ inputs; every other number on the figures is computed from the taps at runtime, 
 same measured_response() the tests use.
 """
 
-from __future__ import annotations
-
 from pathlib import Path
 
 import matplotlib as mpl
