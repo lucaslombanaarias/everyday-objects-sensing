@@ -123,6 +123,13 @@ def test_default_taps_match_design(design_48k):
     np.testing.assert_array_equal(decimate(x, spec), decimate(x, spec, taps))
 
 
+def test_design_is_cached_and_read_only(design_48k):
+    spec, taps = design_48k
+    assert design_decimation_filter(FilterSpec(fs_in=48000.0)) is taps
+    with pytest.raises(ValueError):
+        taps[0] = 1.0
+
+
 def test_decimation_factors():
     assert FilterSpec(fs_in=48000).decimation_factor == 32
     assert FilterSpec(fs_in=24000).decimation_factor == 16
@@ -141,6 +148,8 @@ def test_non_integer_factor_raises():
         {"fs_in": 48000, "passband_edge_hz": 0},
         {"fs_in": 48000, "passband_edge_hz": 800},
         {"fs_in": 48000, "stopband_edge_hz": 1600},
+        # Above fs_out - passband_edge_hz, so transition-band content folds into the passband.
+        {"fs_in": 48000, "stopband_edge_hz": 1001},
         {"fs_in": 48000, "stopband_atten_db": -96},
         {"fs_in": 48000, "passband_ripple_db": 0},
     ],
@@ -188,6 +197,8 @@ def test_split_on_gaps_edge_cases():
         split_on_gaps(np.array([0.0, 0.02, 0.01]), 0.015)
     with pytest.raises(ValueError):
         split_on_gaps(np.arange(3.0), 0)
+    with pytest.raises(ValueError):
+        split_on_gaps(np.array([0.0, 0.01, np.nan, 0.03]), 0.015)
 
 
 def test_designed_filter_meets_spec(design):

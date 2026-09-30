@@ -11,6 +11,7 @@ Everything here operates on numpy arrays plus a sample rate; there is no file I/
 
 from __future__ import annotations
 
+import functools
 import math
 from dataclasses import dataclass
 
@@ -48,10 +49,15 @@ class FilterSpec:
             raise ValueError(
                 f"fs_in / fs_out must be an integer >= 2, got {self.fs_in} / {self.fs_out}"
             )
-        if not 0 < self.passband_edge_hz < self.stopband_edge_hz <= self.fs_out:
+        # Content just above the stopband edge folds down to fs_out - stopband_edge_hz, so
+        # that must stay at or above the passband edge for the passband to be alias-free.
+        if not (
+            0 < self.passband_edge_hz < self.stopband_edge_hz
+            <= self.fs_out - self.passband_edge_hz
+        ):
             raise ValueError(
-                "require 0 < passband_edge_hz < stopband_edge_hz <= fs_out, got "
-                f"{self.passband_edge_hz}, {self.stopband_edge_hz}, {self.fs_out}"
+                "require 0 < passband_edge_hz < stopband_edge_hz <= fs_out - passband_edge_hz, "
+                f"got {self.passband_edge_hz}, {self.stopband_edge_hz}, {self.fs_out}"
             )
         if self.stopband_atten_db <= 0 or self.passband_ripple_db <= 0:
             raise ValueError("stopband_atten_db and passband_ripple_db must be positive")
@@ -89,6 +95,7 @@ def _meets_spec(response: dict, spec: FilterSpec) -> bool:
     )
 
 
+@functools.cache
 def design_decimation_filter(spec: FilterSpec) -> np.ndarray:
     """Design a symmetric, odd-length, linear-phase low-pass FIR for ``spec``.
 
@@ -96,12 +103,17 @@ def design_decimation_filter(spec: FilterSpec) -> np.ndarray:
     so the design starts at that estimate, keeps beta fixed, and adds 2 taps at a time
     until measured_response() meets the spec. Raises ValueError if the spec is not met by
     twice the kaiserord estimate.
+
+    Each attempt measures the response on a million-point grid, so results are cached per
+    spec. The returned array is shared between callers and is read-only; copy it before
+    modifying.
     """
     numtaps, beta = kaiser_estimate(spec)
     max_numtaps = 2 * numtaps
     while numtaps <= max_numtaps:
         taps = signal.firwin(numtaps, spec.cutoff_hz, window=("kaiser", beta), fs=spec.fs_in)
         if _meets_spec(measured_response(taps, spec), spec):
+            taps.setflags(write=False)
             return taps
         numtaps += 2
     raise ValueError(f"spec not met with up to {max_numtaps} taps: {spec}")
@@ -119,7 +131,8 @@ def _check_taps(taps: np.ndarray) -> np.ndarray:
 def decimate(x: np.ndarray, spec: FilterSpec, taps: np.ndarray | None = None) -> np.ndarray:
     """Low-pass filter and downsample ``x`` from spec.fs_in to spec.fs_out.
 
-    ``x`` is 1-D int16 PCM (scaled by 1/32768) or float; the result is float64.
+    ``x`` is 1-D int16 PCM (scaled by 1/32768) or float; the result is float64. If
+    ``taps`` is omitted, the cached design_decimation_filter(spec) is used.
     resample_poly compensates the delay of the symmetric, odd-length FIR, so output
     sample ``m`` is aligned with input sample ``m * D`` (no net delay) and
     ``len(out) == ceil(len(x) / D)``.
@@ -183,6 +196,8 @@ def split_on_gaps(timestamps_s: np.ndarray, max_gap_s: float) -> list[slice]:
         raise ValueError("max_gap_s must be positive")
     if t.size == 0:
         return []
+    if not np.all(np.isfinite(t)):
+        raise ValueError("timestamps_s must be finite")
     dt = np.diff(t)
     if np.any(dt < 0):
         raise ValueError("timestamps_s must be non-decreasing")
