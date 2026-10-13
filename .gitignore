@@ -221,3 +221,10 @@ __marimo__/
 data/raw/
 *.wav
 *.bin
+
+# Dashboard recordings and snapshots, TCP receiver captures
+recordings/
+*.png
+!docs/figures/*.png
+!results/**/*.png
+data/vpu_tcp_*.csv
