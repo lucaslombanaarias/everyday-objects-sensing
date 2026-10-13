@@ -1,7 +1,37 @@
+import sys
+import types
+
 import numpy as np
 import pytest
 
-from live_dashboard import Stream, parse_line
+
+def _import_without_qt():
+    """Import live_dashboard with a stand-in pyqtgraph so these tests need no Qt.
+
+    parse_line and Stream never touch Qt; the module only needs QtWidgets.QMainWindow
+    to exist at import time (as a base class). The stand-ins are removed afterwards.
+    """
+    qt = types.ModuleType("pyqtgraph.Qt")
+    qt.QtCore, qt.QtGui = types.SimpleNamespace(), types.SimpleNamespace()
+    qt.QtWidgets = types.SimpleNamespace(QMainWindow=object)
+    pg = types.ModuleType("pyqtgraph")
+    pg.Qt = qt
+    names = ("pyqtgraph", "pyqtgraph.Qt", "live_dashboard")
+    saved = {name: sys.modules.pop(name, None) for name in names}
+    sys.modules.update({"pyqtgraph": pg, "pyqtgraph.Qt": qt})
+    try:
+        import live_dashboard
+
+        return live_dashboard
+    finally:
+        for name in names:
+            sys.modules.pop(name, None)
+            if saved[name] is not None:
+                sys.modules[name] = saved[name]
+
+
+_live_dashboard = _import_without_qt()
+Stream, parse_line = _live_dashboard.Stream, _live_dashboard.parse_line
 
 # Exact line printed by firmware/vpu_lab_demo/VPU_Chair_Serial at ~200 lines/s.
 VPU_LINE = "vibration:37.5\tfloor:0\tceiling:100"
