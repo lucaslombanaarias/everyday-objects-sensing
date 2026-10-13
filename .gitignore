@@ -227,4 +227,5 @@ recordings/
 *.png
 !docs/figures/*.png
 !results/**/*.png
+!data/footsteps/**/*.png
 data/vpu_tcp_*.csv
