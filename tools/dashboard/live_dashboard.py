@@ -104,6 +104,8 @@ class Stream:
             self.good = 0
             self.bad = 0
             self.last_bad = ""
+            self.notes = 0          # '#' status lines seen; last_note is the latest one
+            self.last_note = ""
             self.status = "idle"
             self._pending_n = None
             self._pending_count = 0
@@ -118,6 +120,9 @@ class Stream:
                     if text.strip():
                         self.bad += 1
                         self.last_bad = text.strip()[:80]
+                        if self.last_bad.startswith("#"):
+                            self.notes += 1
+                            self.last_note = self.last_bad
                     continue
                 labels, values = parsed
                 n = len(values)

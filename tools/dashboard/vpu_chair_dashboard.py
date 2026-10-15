@@ -25,6 +25,9 @@ click "Set empty" / "Set occupied".
 Keys: Space = pause display, R = start/stop CSV recording, E / O = set empty / occupied,
       N = reset for the next person (EMPTY, clear log).
 
+The panel shows both thresholds: the event threshold above (also the red line) and the
+sensor's noise threshold, which the firmware learns at power-up and prints as a '#' line.
+
 Default threshold 15: in test recordings stand-ups peaked as low as 17-24 while the
 empty chair stayed below ~5 (rare blips to ~10).
 Serial parsing and the reconnecting reader are shared with live_dashboard.py.
@@ -34,6 +37,7 @@ import argparse
 import collections
 import csv
 import math
+import re
 import sys
 import threading
 import time
@@ -54,6 +58,7 @@ SIT, STAND, MOVE = "SAT DOWN", "STOOD UP", "movement (seated)"
 EVENT_COLORS = {SIT: "#66bb6a", STAND: "#ffa726", MOVE: "#8b949e"}
 MARKER_TEXT = {SIT: "SIT", STAND: "STAND", MOVE: ""}
 MODES = {"sit": "Sit-down only", "toggle": "Sit + stand"}
+CAL_RE = re.compile(r"change threshold\s*=\s*([0-9.]+)")   # firmware's calibration line
 
 
 class ChairSim(threading.Thread):
@@ -109,6 +114,8 @@ class ChairDashboard(QtWidgets.QMainWindow):
         self.markers = []                           # (sample index, kind, InfiniteLine)
         self.counts = {SIT: 0, STAND: 0}
         self.banner_until = 0.0
+        self.notes_seen = 0
+        self.cal = None                             # (noise threshold, wall time) from firmware
 
         self.setWindowTitle(args.title)
         self.resize(1500, 900)
@@ -171,7 +178,7 @@ class ChairDashboard(QtWidgets.QMainWindow):
         self.raw_curve = self.trace.plot(pen=pg.mkPen("#4fc3f7", width=1.5))
         self.thr_line = pg.InfiniteLine(pos=self.thr.value(), angle=0, movable=True,
                                         pen=pg.mkPen("#ef5350", width=2, style=QtCore.Qt.PenStyle.DashLine),
-                                        label="threshold", labelOpts=dict(position=0.03, color="#ef5350"))
+                                        label="threshold {value:.0f}", labelOpts=dict(position=0.03, color="#ef5350"))
         self.trace.addItem(self.thr_line)
         self.thr_line.sigPositionChanged.connect(lambda: self.thr.setValue(self.thr_line.value()))
         self.thr.valueChanged.connect(lambda v: self.thr_line.setValue(v))
@@ -217,6 +224,7 @@ class ChairDashboard(QtWidgets.QMainWindow):
         self.level_bar.setStyleSheet("QProgressBar{background:#0d1117;border:none;border-radius:4px}"
                                      "QProgressBar::chunk{background:#4fc3f7;border-radius:4px}")
         self.counts_lbl = QtWidgets.QLabel(styleSheet="font-size:16px")
+        self.thr_lbl = QtWidgets.QLabel(styleSheet="font-size:14px", wordWrap=True)
         self.log = QtWidgets.QListWidget()
         self.log.setStyleSheet("QListWidget{background:#0d1117;color:#d0d4d8;font-family:Consolas;"
                                "font-size:14px;border:none}")
@@ -226,7 +234,8 @@ class ChairDashboard(QtWidgets.QMainWindow):
                                 "QPushButton:pressed{background:#0d47a1}")
         reset_btn.clicked.connect(self._reset_session)
         for w in [cap("Chair"), self.state_lbl, self.since_lbl, self.banner_lbl,
-                  cap("Live vibration"), self.level_bar, self.counts_lbl, cap("Event log"), self.log,
+                  cap("Live vibration"), self.level_bar, self.counts_lbl,
+                  cap("Thresholds"), self.thr_lbl, cap("Event log"), self.log,
                   reset_btn]:
             lay.addWidget(w)
         self._set_banner(None)
@@ -252,6 +261,8 @@ class ChairDashboard(QtWidgets.QMainWindow):
         self.stream.reset()
         self.rate_hist.clear()
         self.fs = None
+        self.notes_seen = 0
+        self.cal = None
         self._reset_detector()
         for _, _, line in self.markers:
             self.trace.removeItem(line)
@@ -443,6 +454,7 @@ class ChairDashboard(QtWidgets.QMainWindow):
         else:
             self.counts_lbl.setText(f"sat down {self.counts[SIT]}×    stood up {self.counts[STAND]}×")
         self.level_bar.setValue(int(min(100, self.env)))
+        self._update_thresholds()
 
         self.history.append((now, self.env, self.occupied))
         while self.history and now - self.history[0][0] > HISTORY_S:
@@ -474,6 +486,23 @@ class ChairDashboard(QtWidgets.QMainWindow):
         if len(h) > 1:
             self.occ_curve.setData(mins_ago, h[:, 2] * 100)
             self.act_curve.setData(mins_ago, np.minimum(h[:, 1], 100))
+
+    def _update_thresholds(self):
+        s = self.stream
+        if s.notes != self.notes_seen:
+            self.notes_seen = s.notes
+            match = CAL_RE.search(s.last_note)
+            if match:
+                self.cal = (float(match.group(1)), time.time())
+                self._log(f"{time.strftime('%H:%M:%S')}  calibrated, noise threshold "
+                          f"{self.cal[0]:.4f}", "#8b949e")
+        if self.cal:
+            noise = (f"{self.cal[0]:.4f} (calibrated "
+                     f"{time.strftime('%H:%M:%S', time.localtime(self.cal[1]))})")
+        else:
+            noise = "not received yet. Unplug and replug the board, keep it still ~3 s"
+        self.thr_lbl.setText(f"Event: {self.thr.value():.0f} (score 0-100, red line)\n"
+                             f"Sensor noise: {noise}")
 
     def _envelope_for_display(self, x, fs):
         decay = math.exp(-1.0 / (fs * self.decay.value()))

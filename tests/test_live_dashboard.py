@@ -130,6 +130,16 @@ def test_feed_hash_lines_count_as_skipped():
     assert s.last_bad == "# VPU chair sensor starting"
 
 
+def test_feed_keeps_last_hash_line_as_note():
+    s = Stream()
+    s.feed(["# calibrating, keep the chair still...", "garbage"] + vpu_lines([1.0]))
+    assert (s.notes, s.last_note) == (1, "# calibrating, keep the chair still...")
+    s.feed(["# calibrated, change threshold = 0.0412"])
+    assert (s.notes, s.last_note) == (2, "# calibrated, change threshold = 0.0412")
+    s.reset()
+    assert (s.notes, s.last_note) == (0, "")
+
+
 def test_feed_drops_torn_lines_with_wrong_channel_count():
     s = Stream()
     s.feed(vpu_lines([1.0, 2.0]) + ["vibration:3.0\tfloor:0", "0\tceiling:100"] + vpu_lines([4.0]))
