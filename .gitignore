@@ -221,6 +221,7 @@ __marimo__/
 data/raw/
 *.wav
 *.bin
+!tests/fixtures/*.bin
 
 # Dashboard recordings and snapshots, TCP receiver captures
 recordings/

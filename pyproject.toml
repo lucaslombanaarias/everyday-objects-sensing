@@ -12,6 +12,7 @@ dependencies = [
     "numpy>=2.4.6",
     "scipy>=1.17.1",
     "matplotlib>=3.11.2",
+    "pyserial>=3.5",
 ]
 
 [tool.setuptools.packages.find]

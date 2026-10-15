@@ -80,4 +80,6 @@ One more event at 67.4 s (dominant 120 Hz) was outside the stomp plan. Clusters 
 
 Every stomp, including at 2 m, is at least 18 dB above the resting noise in the 100 to 500 Hz analysis band. With the score logger, stomps at about 0.3 m were not distinguishable from rest (`firmware/vpu_score_logger/README.md`). The amplitudes do not fall off with distance in a consistent way here, which is expected with hand stomps of uneven force; a distance trend needs a repeatable excitation such as the drop stand.
 
-TODO: host receiver that writes CSV, JSON sidecar and .mat (path A step 3), drop-stand tests at measured distances, and a scope check of the PDM clock.
+Record trials with `python -m acquisition.record` (see the main README, "Recording data"). A 10 s noise-only recording through it gave 482,537 samples with 0 CRC errors, 0 counter gaps, 0 overflows and 0 clipped samples.
+
+TODO: drop-stand tests at measured distances, and a scope check of the PDM clock.
