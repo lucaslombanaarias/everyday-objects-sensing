@@ -5,12 +5,17 @@ and one per distance, and write impacts_trials.csv and impacts_summary.csv into 
 folder. The PCM dashboard (tools/dashboard/vpu_pcm_dashboard.py) runs the same analysis
 after every recording.
 
-Per trial: the 50 ms RMS envelope in each band of BANDS, in dB above a noise baseline.
+Detection: the 5 ms RMS of the signal above 100 Hz, in dB above a noise baseline. An
+impact is a peak of it that reaches THRESHOLD_DB and is at least MIN_GAP_S after the
+previous one. Footsteps on the tile floor arrive as clicks a few ms long; a 50 ms window
+(used before 2026-10-14 23:10) averaged most of them away at 2 m.
+
+Each impact is also reported in BANDS, from the 50 ms RMS (as in the stomp and first
+footstep checks), so levels stay comparable with those numbers.
+
 The baseline is the median envelope of the most recent noise-only trial recorded at or
 before the trial in the same folder (any noise-only trial if none precedes it, else the
-quietest 2 s of the trial itself). An impact is a peak of the larger of the DETECT_BANDS
-levels that reaches THRESHOLD_DB, stands PROMINENCE_DB above its surroundings, and is at
-least MIN_GAP_S after the previous one.
+quietest 2 s of the trial itself); another noise-only trial can be chosen instead.
 """
 
 import argparse
@@ -25,45 +30,55 @@ from scipy import signal
 
 from everyday_sensing.events import BandEnvelope
 
+DETECT = "above 100 Hz (5 ms)"
+DETECT_BAND = (100.0, None)
+DETECT_WINDOW_S = 0.005
+DETECT_RATE_HZ = 1000.0
 BANDS = {"100-500 Hz": (100.0, 500.0), "500-2000 Hz": (500.0, 2000.0), "2-8 kHz": (2000.0, 8000.0)}
-DETECT_BANDS = ("100-500 Hz", "500-2000 Hz")
-"""2-8 kHz is reported but not used for detection: in the first footstep trials on tile
-(2026-10-14), walking to the start mark gave 8 to 16 dB peaks in 2-8 kHz with under 6 dB
-in both lower bands, i.e. shoe clicks rather than floor vibration."""
-THRESHOLD_DB = 10.0
-"""In the noise-only recording of 2026-10-14 the 100-500 Hz envelope stayed within 7.9 dB
-of its median 99% of the time (500-2000 Hz: 5.4 dB)."""
-PROMINENCE_DB = 6.0
-MIN_GAP_S = 0.3
+BAND_WINDOW_S = 0.05
+BAND_RATE_HZ = 200.0
+REPORTED = (DETECT, *BANDS)
+"""Levels reported per impact: the detection level first, then the 50 ms band levels."""
+THRESHOLD_DB = 14.0
+"""Set from the trials of 2026-10-14: at 14 dB the detector fired 1.3 to 4.1 times per
+minute on the three noise-only recordings, and found 7 of 9 firm steps in fs_2m_01 (16 dB:
+3 of 9) and 9 of 9 stomping steps in fs_2m_03 and fs_2m_04."""
+MIN_GAP_S = 0.25
+"""Shortest time between two impacts; the 2 m steps on 2026-10-14 were 0.5 s apart."""
 PEAK_WINDOW_S = 0.05
 """Half-width of the window in which each band's level is read around a detected peak."""
 QUIET_WINDOW_S = 2.0
 SKIP_S = 1.0
-"""Start of a noise recording left out of its baseline (filter start-up)."""
-OUT_RATE_HZ = 200.0
+"""Start of a recording left out of its noise baseline (filter start-up)."""
 
 
-def band_envelopes(x, fs) -> tuple[float, dict]:
-    """Envelope rate and the 50 ms RMS envelope (counts) of x in each band."""
-    envs = {name: BandEnvelope(fs, band, out_rate_hz=OUT_RATE_HZ) for name, band in BANDS.items()}
+def envelopes(x, fs) -> dict:
+    """{name: (rate, RMS envelope in counts)} for the detection level and each band."""
     x = np.asarray(x, dtype=np.float64)
-    out = {name: env.process(x) for name, env in envs.items()}
-    return next(iter(envs.values())).rate, out
+    specs = {DETECT: (DETECT_BAND, DETECT_WINDOW_S, DETECT_RATE_HZ)}
+    specs.update({name: (band, BAND_WINDOW_S, BAND_RATE_HZ) for name, band in BANDS.items()})
+    out = {}
+    for name, (band, window, rate) in specs.items():
+        env = BandEnvelope(fs, band, window_s=window, out_rate_hz=rate)
+        out[name] = (env.rate, env.process(x))
+    return out
 
 
 def noise_baseline(x, fs) -> dict:
-    """Median envelope per band of a noise-only recording, skipping its first SKIP_S."""
-    rate, envs = band_envelopes(x, fs)
-    skip = int(SKIP_S * rate)
-    return {name: float(np.median(e[skip:] if e.size > skip else e)) for name, e in envs.items()}
-
-
-def quiet_baseline(envs: dict, rate: float) -> dict:
-    """Per band, the lowest median over QUIET_WINDOW_S windows (the quietest stretch)."""
-    w = max(1, int(QUIET_WINDOW_S * rate))
-    hop = max(1, w // 8)
+    """Median envelope per level of a noise-only recording, skipping its first SKIP_S."""
     out = {}
-    for name, e in envs.items():
+    for name, (rate, e) in envelopes(x, fs).items():
+        skip = int(SKIP_S * rate)
+        out[name] = float(np.median(e[skip:] if e.size > skip else e))
+    return out
+
+
+def quiet_baseline(envs: dict) -> dict:
+    """Per level, the lowest median over QUIET_WINDOW_S windows (the quietest stretch)."""
+    out = {}
+    for name, (rate, e) in envs.items():
+        w = max(1, int(QUIET_WINDOW_S * rate))
+        hop = max(1, w // 8)
         starts = range(0, max(1, e.size - w + 1), hop)
         out[name] = float(min(np.median(e[i : i + w]) for i in starts))
     return out
@@ -77,33 +92,29 @@ def find_impacts(
     min_gap_s: float = MIN_GAP_S,
 ) -> dict:
     """Impacts in one recording. Returns the baseline used and one dict per impact with
-    its time and its level (dB above baseline) in each band."""
-    rate, envs = band_envelopes(x, fs)
+    its time and its level (dB above baseline) for each name in REPORTED."""
+    envs = envelopes(x, fs)
     source = "given"
     if baseline is None:
-        baseline, source = quiet_baseline(envs, rate), "quietest 2 s of the trial"
+        baseline, source = quiet_baseline(envs), "quietest 2 s of the trial"
     tiny = np.finfo(np.float64).tiny
     levels = {
-        name: 20 * np.log10(np.maximum(e, tiny) / max(baseline[name], tiny))
-        for name, e in envs.items()
+        name: (rate, 20 * np.log10(np.maximum(e, tiny) / max(baseline[name], tiny)))
+        for name, (rate, e) in envs.items()
     }
-    detect = np.max(np.vstack([levels[b] for b in DETECT_BANDS]), axis=0)
+    rate, detect = levels[DETECT]
     peaks, _ = signal.find_peaks(
-        detect,
-        height=threshold_db,
-        distance=max(1, int(min_gap_s * rate)),
-        prominence=PROMINENCE_DB,
+        detect, height=threshold_db, distance=max(1, int(min_gap_s * rate))
     )
-    half = max(1, int(PEAK_WINDOW_S * rate))
     impacts = []
     for p in peaks:
-        window = slice(max(0, p - half), p + half + 1)
-        impacts.append(
-            {
-                "t_s": float((p + 1) / rate),
-                "levels_db": {name: float(lv[window].max()) for name, lv in levels.items()},
-            }
-        )
+        t = float((p + 1) / rate)
+        row = {DETECT: float(detect[p])}
+        for name in BANDS:
+            band_rate, lv = levels[name]
+            centre, half = int(round(t * band_rate)) - 1, max(1, int(PEAK_WINDOW_S * band_rate))
+            row[name] = float(lv[max(0, centre - half) : centre + half + 1].max())
+        impacts.append({"t_s": t, "levels_db": row})
     return {"baseline": baseline, "baseline_source": source, "impacts": impacts}
 
 
@@ -231,7 +242,7 @@ def summarize(trials: list[dict]) -> list[dict]:
             "impacts_found": len(impacts),
             "impacts_made": sum(made) if all(m is not None for m in made) else None,
         }
-        for band in BANDS:
+        for band in REPORTED:
             s = _stats([i["levels_db"][band] for i in impacts])
             row.update({f"{band} {k} dB": v for k, v in s.items()})
         rows.append(row)
@@ -300,12 +311,12 @@ def main(argv: list[str] | None = None) -> None:
             + f", baseline {t['result']['baseline_source']}"
         )
     summary = summarize(trials)
-    heads = "  ".join(f"{b} mean (sd)" for b in BANDS)
+    heads = "  ".join(f"{b} mean (sd)" for b in REPORTED)
     print(f"\nexcitation  distance  trials  found  made  {heads}")
     for r in summary:
         cells = "  ".join(
             f"{_fmt(r[f'{b} mean dB'])} ({_fmt(r[f'{b} std dB'])})".rjust(len(b) + 11)
-            for b in BANDS
+            for b in REPORTED
         )
         print(
             f"{r['excitation']:<10}  {_fmt(r['distance_m']):>8}  {r['trials']:>6}  "

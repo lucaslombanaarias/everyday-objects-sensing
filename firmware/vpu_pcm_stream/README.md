@@ -84,14 +84,23 @@ Record trials with `python -m acquisition.record` (see the main README, "Recordi
 
 ### Footstep check
 
-Tile floor, sensor taped, 2026-10-14. A 30 s noise-only recording (`fs_noise_01`) gave the baseline: median 50 ms RMS of 1.60 counts in 100 to 500 Hz, 0.84 in 500 to 2000 Hz and 1.02 in 2 to 8 kHz, with the 99th percentile 7.9, 5.4 and 7.5 dB above those medians. Then two trials of 5 steps on marks on a 1 m circle around the sensor (distance measured with a tape), analyzed with `python -m everyday_sensing.impacts`:
+Tile floor, sensor taped, 2026-10-14, walker Elsa, steps on tape-measured marks on a circle around the sensor. Noise-only recordings before the trials (`fs_noise_01`, 30 s, and `fs_noise_03`, 47 s) gave the baselines; the medians in `fs_noise_01` were 2.26 counts (above 100 Hz, 5 ms RMS) and 1.60, 0.84 and 1.02 counts (50 ms RMS in 100 to 500 Hz, 500 to 2000 Hz and 2 to 8 kHz). Analyzed with `python -m everyday_sensing.impacts data/raw/2026-10-14`:
 
-| Trial | Steps made (from notes) | Impacts found | 100 to 500 Hz | 500 to 2000 Hz | 2 to 8 kHz |
+| Trial | Distance | Steps made | Impacts found | Detection level (above 100 Hz, 5 ms) | Baseline |
 |---|---|---|---|---|---|
-| `fs_1m_01` | 5 | 4 | 9.3 to 20.6 dB | 13.6 to 20.6 dB | 9.4 to 23.1 dB |
-| `fs_1m_02` | 5 | 6 | 5.9 to 24.1 dB | 2.4 to 29.5 dB | 1.3 to 36.9 dB |
-| Both | 10 | 10 | mean 16.3, sd 6.1 dB | mean 18.3, sd 8.3 dB | mean 20.3, sd 12.1 dB |
+| `fs_1m_01` | 1 m | 5 (from notes) | 5 | 18.1 to 28.2 dB | `fs_noise_01` |
+| `fs_1m_02` | 1 m | 5 (from notes) | 8 | 14.7 to 40.5 dB | `fs_noise_01` |
+| `fs_1m_03` | 1 m | 5 (from notes) | 5 | 24.0 to 41.7 dB | `fs_noise_01` |
+| `fs_2m_01` | 2 m | 9 firm | 7 | 14.3 to 25.4 dB | `fs_noise_03` |
+| `fs_2m_02` | 2 m | 9 firm | 3 | 17.0 to 23.8 dB | `fs_noise_03` |
+| `fs_2m_03` | 2 m | 9 stomping | 9 | 18.5 to 29.7 dB | `fs_noise_03` |
+| `fs_2m_04` | 2 m | 9 stomping | 9 | 18.5 to 36.2 dB | `fs_noise_03` |
+| `fs_2m_05` | 2 m | 9 stomping | 11 | 19.6 to 37.0 dB | `fs_noise_03` |
 
-Footsteps are weaker and more variable than the stomps: one step reached only 5.9 dB in 100 to 500 Hz, against 18.7 dB for the weakest stomp. In `fs_1m_02` the sixth impact (12.37 s, 19.0 dB in 100 to 500 Hz but 2.4 dB in 500 to 2000 Hz) is probably a weight shift rather than a step, and in `fs_1m_01` one step was not found. Walking to the start mark gave peaks of 8 to 16 dB in 2 to 8 kHz with under 6 dB in both lower bands, which is why the analysis does not use 2 to 8 kHz to find impacts.
+Over all impacts found, the detection level averaged 26.2 dB (sd 8.6, 18 impacts) at 1 m and 24.0 dB (sd 6.1, 39 impacts) at 2 m. The 2 m set mixes firm and stomping steps, so the two distances are not directly comparable.
+
+The steps arrive as clicks a few ms long. The first analysis used the 50 ms RMS in 100 to 500 Hz and 500 to 2000 Hz at 10 dB, which averaged most of the 2 m clicks away: it found 3 of 9 steps in `fs_2m_01` and 2 of 9 in `fs_2m_02`. The detector now uses the 5 ms RMS above 100 Hz at 14 dB with at least 0.25 s between impacts. On the three noise-only recordings of that evening it fires 1.3 to 4.1 times per minute (`fs_noise_02` also contains one footstep-sized event at 31 s, most likely someone moving).
+
+Extra impacts (`fs_1m_02`, `fs_2m_05`) come after the last step, most likely stepping off the circle; impacts while walking to the start mark are counted too, so start the recording with the walker already on the mark. `fs_2m_02` had only 3 of its 9 firm steps above the threshold.
 
 TODO: drop-stand tests at measured distances, and a scope check of the PDM clock.

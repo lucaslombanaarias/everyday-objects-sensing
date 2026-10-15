@@ -60,11 +60,14 @@ SPEC_S = 10.0          # spectrogram history shown
 SPEC_N = 1024          # samples per spectrogram column
 SPEC_FMAX = 8000.0     # top of the sensor's specified band (datasheet)
 LEARN_S = 3.0
+# Live band level options: (band, RMS window in s, envelope rate in Hz). The first is the
+# detector the trial analysis uses (everyday_sensing.impacts).
 BANDS = {
-    "100-500 Hz (analysis band)": (100.0, 500.0),
-    "above 100 Hz": (100.0, None),
-    "100-2000 Hz": (100.0, 2000.0),
-    "2-8 kHz (resonance)": (2000.0, 8000.0),
+    "above 100 Hz, 5 ms (analysis)": (impacts.DETECT_BAND, impacts.DETECT_WINDOW_S,
+                                      impacts.DETECT_RATE_HZ),
+    "100-500 Hz, 50 ms": ((100.0, 500.0), 0.05, 200.0),
+    "100-2000 Hz, 50 ms": ((100.0, 2000.0), 0.05, 200.0),
+    "2-8 kHz, 50 ms (resonance)": ((2000.0, 8000.0), 0.05, 200.0),
 }
 COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb6a"}
 TRIAL_TYPES = ["footsteps", "stomp", "drop", "tap", "noise only"]
@@ -257,7 +260,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
             self.band_box.addItem(name)
         self.band_box.currentIndexChanged.connect(lambda _: self._reset_detection())
         self.thr = spin(3, 60, impacts.THRESHOLD_DB, 1, decimals=0, suffix=" dB")
-        self.gap = spin(0.05, 5, 0.3, 0.05, decimals=2, suffix=" s")
+        self.gap = spin(0.05, 5, impacts.MIN_GAP_S, 0.05, decimals=2, suffix=" s")
         self.hp = QtWidgets.QCheckBox("High-pass 100 Hz", checked=True)
         learn = QtWidgets.QPushButton("Learn noise")
         learn.clicked.connect(self._learn)
@@ -283,7 +286,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.wave_curve.setClipToView(True)
         grid.addWidget(self.wave, 0, 0)
 
-        self.env = pg.PlotWidget(title="Band level above noise baseline (50 ms RMS)")
+        self.env = pg.PlotWidget(title="Level above noise baseline (RMS in the chosen band)")
         self.env.setLabel("bottom", "time", "s")
         self.env.setLabel("left", "dB")
         self.env.showGrid(x=True, y=True, alpha=0.2)
@@ -382,8 +385,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         # Results: last trial and per-distance summary
         self.result_lbl = QtWidgets.QLabel("no trial recorded yet", wordWrap=True,
                                            styleSheet="font-size:15px")
-        self.result_table = self._table(["#", "t (s)", "100-500 Hz", "500-2000 Hz", "2-8 kHz"])
-        self.summary_table = self._table(["type", "dist.", "n", "found/made",
+        self.result_table = self._table(["#", "t (s)", "level", "100-500", "500-2k", "2-8k"])
+        self.summary_table = self._table(["type", "dist.", "n", "found/made", "level",
                                           "100-500", "500-2k", "2-8k"])
         self.folder_lbl = QtWidgets.QLabel(wordWrap=True, styleSheet="font-size:12px;color:#8b949e")
         refresh = QtWidgets.QPushButton("Refresh")
@@ -395,7 +398,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         baseline_row = QtWidgets.QHBoxLayout()
         baseline_row.addWidget(QtWidgets.QLabel("Baseline"))
         baseline_row.addWidget(self.baseline_box, 1)
-        self.noise_table = self._table(["noise trial", "time", "100-500", "500-2k", "2-8k"])
+        self.noise_table = self._table(["noise trial", "time", ">100 5ms", "100-500", "500-2k",
+                                        "2-8k"])
         self.trial_box = QtWidgets.QComboBox()
         self.trial_box.currentIndexChanged.connect(lambda _: self._pick_trial())
         trash = QtWidgets.QPushButton("Trash...")
@@ -406,9 +410,9 @@ class PcmDashboard(QtWidgets.QMainWindow):
         trial_row.addWidget(trash)
         self.noise_table.setMaximumHeight(120)
         results = page([baseline_row,
-                        cap("Noise-only trials: median 50 ms RMS (counts), bands in Hz"),
+                        cap("Noise-only trials: median RMS (counts); bands in Hz, 50 ms"),
                         self.noise_table,
-                        cap("Trial (dB above the noise baseline)"), trial_row, self.result_lbl,
+                        cap("Trial: dB above the noise baseline; level = above 100 Hz, 5 ms (detection)"), trial_row, self.result_lbl,
                         self.result_table, cap("All trials in the folder: mean (sd) dB per impact, bands in Hz"),
                         self.summary_table, self.folder_lbl, refresh])
 
@@ -492,7 +496,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.source.start()
 
     def _reset_detection(self):
-        self.envelope = BandEnvelope(self.fs, BANDS[self.band_box.currentText()])
+        band, window, rate = BANDS[self.band_box.currentText()]
+        self.envelope = BandEnvelope(self.fs, band, window_s=window, out_rate_hz=rate)
         self.detector = EventDetector(self.envelope.rate, self.thr.value(), self.thr.value() - 6,
                                       self.gap.value())
         self.env_hist = np.zeros(0)
@@ -600,7 +605,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         noises = [t for t in trials if t["result"] is None]
         self._fill(self.noise_table, [
             [t["meta"]["trial_id"], t["meta"].get("start_time", "")[11:19],
-             *[f"{t['noise_baseline'][b]:.2f}" for b in impacts.BANDS]] for t in noises])
+             *[f"{t['noise_baseline'][b]:.2f}" for b in impacts.REPORTED]] for t in noises])
         self.folder_lbl.setText(f"{folder}, {len(trials)} trials, threshold "
                                 f"{self.thr.value():.0f} dB, baseline "
                                 f"{chosen or 'automatic'}")
@@ -608,7 +613,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self._fill(self.summary_table, [
             [r["excitation"], f"{r['distance_m']:g} m", r["trials"],
              f"{r['impacts_found']} / {'-' if r['impacts_made'] is None else r['impacts_made']}",
-             *[self._mean_sd(r, b) for b in impacts.BANDS]] for r in rows])
+             *[self._mean_sd(r, b) for b in impacts.REPORTED]] for r in rows])
         shown = next((t for t in trials if t["meta"]["trial_id"] == show), None)
         if shown is None:
             shown = trials[-1] if trials else None
@@ -683,7 +688,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         found = t["result"]["impacts"]
         made = meta.get("impacts_made")
         base = t["result"]["baseline"]
-        levels = ", ".join(f"{b} {base[b]:.2f}" for b in impacts.BANDS)
+        levels = ", ".join(f"{b} {base[b]:.2f}" for b in impacts.REPORTED)
         match = "" if made is None else (" (matches)" if made == len(found) else
                                          f" <span style='color:#ffa726'>({made} made)</span>")
         self.result_lbl.setText(
@@ -691,7 +696,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
             f"{meta.get('distance_m'):g} m, <b>{len(found)} found</b>{match}<br>"
             f"baseline: {t['result']['baseline_source']} ({levels} counts)")
         self._fill(self.result_table, [
-            [k, f"{i['t_s']:.2f}", *[f"{i['levels_db'][b]:.1f}" for b in impacts.BANDS]]
+            [k, f"{i['t_s']:.2f}", *[f"{i['levels_db'][b]:.1f}" for b in impacts.REPORTED]]
             for k, i in enumerate(found, 1)])
 
     @staticmethod

@@ -13,7 +13,9 @@ from acquisition.record import (
     write_trial,
 )
 from everyday_sensing.impacts import (
-    BANDS,
+    DETECT,
+    REPORTED,
+    THRESHOLD_DB,
     analyze_folder,
     find_impacts,
     noise_baseline,
@@ -56,17 +58,27 @@ def save(folder, trial_id, x, minutes, argv):
     write_trial(capture, meta, folder)
 
 
-def test_steps_found_and_clicks_ignored():
+def test_steps_and_short_clicks_found():
+    # Footsteps at 2 m arrived as clicks a few ms long; the 5 ms detector must find them.
     steps, clicks = [1.0, 1.8, 2.6], [0.4, 3.4]
     x = signal_with(steps, clicks)
     baseline = noise_baseline(signal_with(duration_s=3.0, seed=1), FS)
     result = find_impacts(x, FS, baseline)
     times = [i["t_s"] for i in result["impacts"]]
-    assert len(times) == len(steps)
-    np.testing.assert_allclose(times, steps, atol=0.06)
+    np.testing.assert_allclose(times, sorted(steps + clicks), atol=0.01)
     for i in result["impacts"]:
-        assert set(i["levels_db"]) == set(BANDS)
-        assert i["levels_db"]["100-500 Hz"] > 20
+        assert tuple(i["levels_db"]) == REPORTED
+        assert i["levels_db"][DETECT] >= THRESHOLD_DB
+    by_time = {round(i["t_s"], 1): i["levels_db"] for i in result["impacts"]}
+    assert by_time[1.0]["100-500 Hz"] > 20      # the steps carry low-band energy
+    assert by_time[0.4]["100-500 Hz"] < 3       # the clicks do not
+
+
+def test_hum_below_100_hz_is_not_an_impact():
+    t = np.arange(int(4 * FS)) / FS
+    x = signal_with(duration_s=4.0) + 30 * np.sin(2 * np.pi * 41 * t)
+    baseline = noise_baseline(signal_with(duration_s=3.0, seed=1), FS)
+    assert find_impacts(x, FS, baseline)["impacts"] == []
 
 
 def test_quietest_stretch_used_without_baseline():
