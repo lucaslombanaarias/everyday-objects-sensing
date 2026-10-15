@@ -41,4 +41,14 @@ The window acts as a moving-average (boxcar) lowpass filter. Content much faster
 
 ## Measured on hardware
 
-TODO: window duration (`window_us_mean`), line rate from `t_us`, and the count of dropped lines over a long recording. To be filled in from a real board.
+One XIAO ESP32-C6 on 2026-10-14, sensor taped to the floor, 40 s USB recording (9,039 lines):
+
+| Quantity | Value |
+|---|---|
+| `window_us_mean` (startup line) | 3,905.99 us |
+| Line period from `t_us` | median 4,016 us, mean 4,025.84 us (248.40 lines/s), max 9,001 us |
+| Dropped lines (gaps in `n`) | 0 |
+| Calibrated threshold | 1.2650 (an earlier power-up on the same board gave 1.3110) |
+| `ones` at rest, first 5 s after calibration | median 1,877, std 14.2, range 1,827 to 1,920 |
+
+The line period is longer than the window because printing each line takes time too. TODO: a longer recording to check drop rate over a full test block.
