@@ -148,6 +148,21 @@ def test_sidecar_is_written_last(tmp_path, monkeypatch):
     assert seen == [False]
 
 
+def test_trash_trial_outside_windows_moves_to_trash_folder(tmp_path, monkeypatch):
+    import acquisition.record as record
+
+    monkeypatch.setattr(record.sys, "platform", "linux")
+    save(tmp_path, "fs_noise_01", signal_with(seed=1), 0, ["--noise-only"])
+    save(tmp_path, "fs_1m_01", signal_with([1.0]), 1,
+         ["--distance-m", "1", "--excitation-type", "footsteps"])
+    folder = tmp_path / "2026-10-14"
+    where = record.trash_trial(folder / "fs_1m_01.json")
+    assert sorted(p.name for p in Path(where).iterdir()) == [
+        "fs_1m_01.csv", "fs_1m_01.json", "fs_1m_01.mat"]
+    assert record.trial_files(folder / "fs_1m_01.json") == []
+    assert [t["meta"]["trial_id"] for t in analyze_folder(folder)] == ["fs_noise_01"]
+
+
 def test_cache_reuses_results(tmp_path):
     save(tmp_path, "fs_noise_01", signal_with(seed=1), 0, ["--noise-only"])
     save(tmp_path, "fs_1m_01", signal_with([1.0]), 1,

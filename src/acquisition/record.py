@@ -209,6 +209,46 @@ def write_trial(capture: Capture, meta: dict, out_dir: Path, overwrite: bool = F
     return paths
 
 
+def trial_files(json_path: Path) -> list[Path]:
+    """A trial's files that exist, sidecar first."""
+    json_path = Path(json_path)
+    return [p for p in (json_path.with_suffix(ext) for ext in (".json", ".mat", ".csv"))
+            if p.exists()]
+
+
+def trash_trial(json_path: Path) -> str:
+    """Move a trial's .json, .mat and .csv to the Windows Recycle Bin, so they can be
+    restored. Elsewhere they move to a trash/ folder next to them, which the analysis does
+    not read. The sidecar goes first, so a half-finished move never leaves a trial that
+    looks complete. Returns where the files went; raises OSError if any remain."""
+    files = trial_files(json_path)
+    if not files:
+        raise FileNotFoundError(f"no files for trial {json_path}")
+    if sys.platform == "win32":
+        quoted = ", ".join("'" + str(p.resolve()).replace("'", "''") + "'" for p in files)
+        script = (
+            "Add-Type -AssemblyName Microsoft.VisualBasic; "
+            f"foreach ($f in @({quoted})) {{ "
+            "[Microsoft.VisualBasic.FileIO.FileSystem]::DeleteFile("
+            "$f, 'OnlyErrorDialogs', 'SendToRecycleBin') }"
+        )
+        subprocess.run(
+            ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
+            capture_output=True, text=True, check=False,
+        )
+        where = "the Recycle Bin"
+    else:
+        trash = Path(json_path).parent / "trash"
+        trash.mkdir(exist_ok=True)
+        for p in files:
+            p.replace(trash / p.name)
+        where = str(trash)
+    left = [str(p) for p in files if p.exists()]
+    if left:
+        raise OSError(f"could not move to {where}: {left}")
+    return where
+
+
 def build_meta(args: argparse.Namespace, start: datetime.datetime) -> dict:
     return {
         "trial_id": args.trial_id,

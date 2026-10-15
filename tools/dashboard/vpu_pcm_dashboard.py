@@ -46,6 +46,7 @@ from acquisition.record import (
     next_trial_id,
     parse_args,
     repo_state,
+    trash_trial,
     write_trial,
 )
 from everyday_sensing import impacts
@@ -230,6 +231,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.events = []
         self.analysis_cache = {}
         self.shown_id = None
+        self.trials_by_id = {}
         self.hp_sos = signal.butter(4, 100, "highpass", fs=self.fs, output="sos")
         self.setWindowTitle("VPU PCM - live")
         self.resize(1500, 950)
@@ -392,11 +394,19 @@ class PcmDashboard(QtWidgets.QMainWindow):
         baseline_row.addWidget(QtWidgets.QLabel("Baseline"))
         baseline_row.addWidget(self.baseline_box, 1)
         self.noise_table = self._table(["noise trial", "time", "100-500", "500-2k", "2-8k"])
+        self.trial_box = QtWidgets.QComboBox()
+        self.trial_box.currentIndexChanged.connect(lambda _: self._pick_trial())
+        trash = QtWidgets.QPushButton("Trash...")
+        trash.setToolTip("Move this trial's .csv, .json and .mat to the Recycle Bin")
+        trash.clicked.connect(self._trash_shown)
+        trial_row = QtWidgets.QHBoxLayout()
+        trial_row.addWidget(self.trial_box, 1)
+        trial_row.addWidget(trash)
         self.noise_table.setMaximumHeight(120)
         results = page([baseline_row,
                         cap("Noise-only trials: median 50 ms RMS (counts), bands in Hz"),
                         self.noise_table,
-                        cap("Last trial (dB above the noise baseline)"), self.result_lbl,
+                        cap("Trial (dB above the noise baseline)"), trial_row, self.result_lbl,
                         self.result_table, cap("All trials in the folder: mean (sd) dB per impact, bands in Hz"),
                         self.summary_table, self.folder_lbl, refresh])
 
@@ -583,8 +593,44 @@ class PcmDashboard(QtWidgets.QMainWindow):
         if shown is not None:
             self.shown_id = shown["meta"]["trial_id"]
             self._show_trial(shown)
-            if switch_tab:
-                self.tabs.setCurrentIndex(1)
+        self.trials_by_id = {t["meta"]["trial_id"]: t for t in trials}
+        self.trial_box.blockSignals(True)
+        self.trial_box.clear()
+        for t in reversed(trials):
+            meta = t["meta"]
+            kind = "noise only" if t["result"] is None else (
+                f"{(meta.get('excitation') or {}).get('type')}, {meta.get('distance_m'):g} m")
+            self.trial_box.addItem(f"{meta['trial_id']}  ({kind})", meta["trial_id"])
+        self.trial_box.setCurrentIndex(max(0, self.trial_box.findData(self.shown_id)))
+        self.trial_box.blockSignals(False)
+        if shown is not None and switch_tab:
+            self.tabs.setCurrentIndex(1)
+
+    def _pick_trial(self):
+        t = self.trials_by_id.get(self.trial_box.currentData())
+        if t is not None:
+            self.shown_id = t["meta"]["trial_id"]
+            self._show_trial(t)
+
+    def _trash_shown(self):
+        trial = self.trial_box.currentData()
+        if not trial:
+            return
+        path = self._folder() / f"{trial}.json"
+        answer = QtWidgets.QMessageBox.question(
+            self, "Trash trial",
+            f"Move {trial} (.csv, .json, .mat) to the Recycle Bin?\n\n"
+            "You can restore it from the Recycle Bin. It is removed from the results.")
+        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        try:
+            where = trash_trial(path)
+        except OSError as e:
+            QtWidgets.QMessageBox.warning(self, "Trash trial", str(e))
+            return
+        self.shown_id = None
+        self._refresh_results()
+        self.folder_lbl.setText(f"{trial} moved to {where}. " + self.folder_lbl.text())
 
     def _sync_baselines(self, folder):
         """Refill the baseline dropdown with the folder's noise-only trials, keeping the
