@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from pcm_events import BandEnvelope, EventDetector
+from everyday_sensing.events import BandEnvelope, EventDetector
 
 FS = 48000.0
 

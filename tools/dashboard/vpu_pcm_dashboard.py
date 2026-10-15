@@ -1,5 +1,5 @@
-"""Live view of the VPU PCM stream (firmware/vpu_pcm_stream): waveform, spectrogram and a
-band envelope with event (footstep) detection.
+"""Live view and trial recorder for the VPU PCM stream (firmware/vpu_pcm_stream):
+waveform, spectrogram, band envelope with live event detection, and per-trial analysis.
 
     python tools/dashboard/vpu_pcm_dashboard.py --port COM3
     python tools/dashboard/vpu_pcm_dashboard.py --port SIM      # synthetic footsteps
@@ -7,8 +7,13 @@ band envelope with event (footstep) detection.
 The board is switched to binary mode while the window is open and back to stats mode when
 it closes. The noise baseline is learned from the first 3 s after connecting (keep still)
 or with the "Learn noise" button; an event is when the 50 ms RMS in the chosen band rises
-the threshold above it. Record saves the same CSV, JSON sidecar and .mat files as
-`python -m acquisition.record`, to data/raw/<date>/ by default.
+the threshold above it.
+
+Trial tab: fill in the trial (type, distance, impacts made, floor, ...) and press Record;
+Stop saves the same CSV, JSON sidecar and .mat files as `python -m acquisition.record`, to
+data/raw/<date>/ by default, then runs everyday_sensing.impacts on it. Results tab: the
+impacts found in the last trial and a per-distance summary of every trial in that folder,
+each measured against the latest noise-only trial (record one first).
 
 Keys: Space = pause display, R = start/stop recording, N = learn noise, C = clear events.
 Requires the repo's Python package (pip install -r requirements.txt from the repo root).
@@ -17,10 +22,12 @@ Requires the repo's Python package (pip install -r requirements.txt from the rep
 import argparse
 import dataclasses
 import datetime
+import math
 import sys
 import threading
 import time
 import types
+from pathlib import Path
 
 import numpy as np
 import pyqtgraph as pg
@@ -35,10 +42,13 @@ from acquisition.record import (
     NOMINAL_FS_HZ,
     assemble,
     build_meta,
+    next_trial_id,
     parse_args,
+    repo_state,
     write_trial,
 )
-from pcm_events import BandEnvelope, EventDetector
+from everyday_sensing import impacts
+from everyday_sensing.events import BandEnvelope, EventDetector
 
 SIM = "SIM"
 TICK_MS = 50
@@ -55,6 +65,8 @@ BANDS = {
     "2-8 kHz (resonance)": (2000.0, 8000.0),
 }
 COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb6a"}
+TRIAL_TYPES = ["footsteps", "stomp", "drop", "tap", "noise only"]
+
 
 
 # --------------------------------------------------------------------------- data
@@ -214,10 +226,12 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.paused = False
         self.rec_start = None
         self.events = []
+        self.analysis_cache = {}
         self.hp_sos = signal.butter(4, 100, "highpass", fs=self.fs, output="sos")
         self.setWindowTitle("VPU PCM - live")
         self.resize(1500, 950)
         self._build_ui()
+        self._refresh_results()
         self._start_source(args.port)
         self.timer = QtCore.QTimer(timeout=self._tick)
         self.timer.start(TICK_MS)
@@ -237,7 +251,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         for name in BANDS:
             self.band_box.addItem(name)
         self.band_box.currentIndexChanged.connect(lambda _: self._reset_detection())
-        self.thr = spin(3, 60, 20, 1, decimals=0, suffix=" dB")
+        self.thr = spin(3, 60, impacts.THRESHOLD_DB, 1, decimals=0, suffix=" dB")
         self.gap = spin(0.05, 5, 0.3, 0.05, decimals=2, suffix=" s")
         self.hp = QtWidgets.QCheckBox("High-pass 100 Hz", checked=True)
         learn = QtWidgets.QPushButton("Learn noise")
@@ -307,12 +321,71 @@ class PcmDashboard(QtWidgets.QMainWindow):
         QtGui.QShortcut(QtGui.QKeySequence("C"), self, self._clear)
 
     def _build_panel(self):
-        box = QtWidgets.QFrame()
-        box.setStyleSheet("QFrame{background:#161b22;border-radius:8px} QLabel{color:#d0d4d8}")
-        box.setMinimumWidth(360)
-        lay = QtWidgets.QVBoxLayout(box)
+        tabs = QtWidgets.QTabWidget()
+        tabs.setMinimumWidth(420)
+        tabs.setStyleSheet("QWidget#tab{background:#161b22} QLabel{color:#d0d4d8}")
         cap = lambda text: QtWidgets.QLabel(text, styleSheet="font-size:14px;color:#8b949e")
         center = QtCore.Qt.AlignmentFlag.AlignCenter
+
+        def page(widgets):
+            w = QtWidgets.QWidget(objectName="tab")
+            lay = QtWidgets.QVBoxLayout(w)
+            for x in widgets:
+                if isinstance(x, QtWidgets.QLayout):
+                    lay.addLayout(x)
+                else:
+                    lay.addWidget(x)
+            return w
+
+        # Trial: what is being recorded
+        self.type_box = QtWidgets.QComboBox()
+        self.type_box.addItems(TRIAL_TYPES)
+        self.dist = spin(0, 100, 1.0, 0.5, decimals=2, suffix=" m")
+        self.made = QtWidgets.QSpinBox(minimum=0, maximum=999, value=0, specialValueText="not given")
+        self.floor_edit = QtWidgets.QLineEdit(placeholderText="e.g. tile")
+        self.mount_edit = QtWidgets.QLineEdit("tape")
+        self.operator_edit = QtWidgets.QLineEdit()
+        fw = repo_state().get("fw_source_commit") or ""
+        self.fw_edit = QtWidgets.QLineEdit(fw[:7], placeholderText="commit flashed on the board")
+        self.prefix_edit = QtWidgets.QLineEdit("fs")
+        self.notes_edit = QtWidgets.QLineEdit(placeholderText="e.g. walking circle, 5 steps on marks")
+        self.trial_edit = QtWidgets.QLineEdit()
+        form = QtWidgets.QFormLayout()
+        for label, w in [("Type", self.type_box), ("Distance", self.dist),
+                         ("Impacts made", self.made), ("Floor", self.floor_edit),
+                         ("Mount", self.mount_edit), ("Operator", self.operator_edit),
+                         ("Firmware commit", self.fw_edit), ("ID prefix", self.prefix_edit),
+                         ("Notes", self.notes_edit), ("Trial ID", self.trial_edit)]:
+            form.addRow(QtWidgets.QLabel(label), w)
+        for sig in (self.type_box.currentIndexChanged, self.dist.valueChanged,
+                    self.prefix_edit.textChanged):
+            sig.connect(lambda *_: self._suggest_trial_id())
+        self.type_box.currentIndexChanged.connect(lambda *_: self._type_changed())
+        self.rec_btn = QtWidgets.QPushButton("● Record", checkable=True)
+        self.rec_btn.setStyleSheet("font-size:18px;padding:10px")
+        self.rec_btn.toggled.connect(self._set_recording)
+        self.rec_lbl = QtWidgets.QLabel(" ", wordWrap=True, styleSheet="font-size:13px")
+        intro = cap("Record a noise-only trial first: it is the baseline for the analysis "
+                    "of the trials after it.")
+        intro.setWordWrap(True)
+        trial = page([intro, form, self.rec_btn,
+                      self.rec_lbl, QtWidgets.QWidget()])
+        trial.layout().setStretch(trial.layout().count() - 1, 1)
+
+        # Results: last trial and per-distance summary
+        self.result_lbl = QtWidgets.QLabel("no trial recorded yet", wordWrap=True,
+                                           styleSheet="font-size:15px")
+        self.result_table = self._table(["#", "t (s)", "100-500 Hz", "500-2000 Hz", "2-8 kHz"])
+        self.summary_table = self._table(["type", "dist.", "n", "found/made",
+                                          "100-500", "500-2k", "2-8k"])
+        self.folder_lbl = QtWidgets.QLabel(wordWrap=True, styleSheet="font-size:12px;color:#8b949e")
+        refresh = QtWidgets.QPushButton("Refresh")
+        refresh.clicked.connect(self._refresh_results)
+        results = page([cap("Last trial (dB above the noise baseline)"), self.result_lbl,
+                        self.result_table, cap("All trials in the folder: mean (sd) dB per impact, bands in Hz"),
+                        self.summary_table, self.folder_lbl, refresh])
+
+        # Live: events from the band level plot
         self.count_lbl = QtWidgets.QLabel("0", alignment=center,
                                           styleSheet="font-size:64px;font-weight:bold")
         self.last_lbl = QtWidgets.QLabel(" ", alignment=center, styleSheet="font-size:18px")
@@ -320,17 +393,36 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.log = QtWidgets.QListWidget()
         self.log.setStyleSheet("QListWidget{background:#0d1117;color:#d0d4d8;font-family:Consolas;"
                                "font-size:13px;border:none}")
-        self.trial_edit = QtWidgets.QLineEdit(placeholderText="trial id (default: dash_<time>)")
-        self.notes_edit = QtWidgets.QLineEdit(placeholderText="notes")
-        self.rec_btn = QtWidgets.QPushButton("● Record", checkable=True)
-        self.rec_btn.setStyleSheet("font-size:18px;padding:10px")
-        self.rec_btn.toggled.connect(self._set_recording)
-        self.rec_lbl = QtWidgets.QLabel(" ", wordWrap=True, styleSheet="font-size:13px")
-        for w in [cap("Events"), self.count_lbl, self.last_lbl, cap("Noise baseline"),
-                  self.noise_lbl, cap("Event log"), self.log, cap("Recording"),
-                  self.trial_edit, self.notes_edit, self.rec_btn, self.rec_lbl]:
-            lay.addWidget(w)
-        return box
+        live = page([cap("Live events"), self.count_lbl, self.last_lbl, cap("Live noise baseline"),
+                     self.noise_lbl, cap("Event log"), self.log])
+
+        tabs.addTab(trial, "Trial")
+        tabs.addTab(results, "Results")
+        tabs.addTab(live, "Live")
+        self.tabs = tabs
+        return tabs
+
+    def _table(self, headers):
+        t = QtWidgets.QTableWidget(0, len(headers))
+        t.setHorizontalHeaderLabels(headers)
+        t.verticalHeader().setVisible(False)
+        t.setEditTriggers(QtWidgets.QAbstractItemView.EditTrigger.NoEditTriggers)
+        t.horizontalHeader().setSectionResizeMode(QtWidgets.QHeaderView.ResizeMode.ResizeToContents)
+        t.setStyleSheet("QTableWidget{background:#0d1117;color:#d0d4d8;gridline-color:#30363d}")
+        return t
+
+    def _folder(self) -> Path:
+        return Path(self.args.out_dir) / datetime.date.today().isoformat()
+
+    def _type_changed(self):
+        noise = self.type_box.currentText() == "noise only"
+        for w in (self.dist, self.made):
+            w.setEnabled(not noise)
+
+    def _suggest_trial_id(self):
+        prefix = self.prefix_edit.text().strip() or "trial"
+        self.trial_edit.setText(next_trial_id(self._folder(), prefix, self.type_box.currentText(),
+                                              self.dist.value()))
 
     def _fill_ports(self):
         self.port_box.clear()
@@ -395,13 +487,15 @@ class PcmDashboard(QtWidgets.QMainWindow):
     def _set_recording(self, on):
         link = self.link
         if on:
+            if not self.trial_edit.text().strip():
+                self._suggest_trial_id()
             with link.lock:
                 link.recording = []
                 self.rec_counts = (link.parser.crc_errors, link.parser.skipped_bytes)
             self.rec_start = time.time()
             self.rec_btn.setText("■ Stop")
             self.rec_btn.setStyleSheet("font-size:18px;padding:10px;background:#b71c1c;color:white")
-            self.rec_lbl.setText("recording...")
+            self.rec_lbl.setText(f"recording {self.trial_edit.text().strip()}...")
             return
         self.rec_btn.setText("● Record")
         self.rec_btn.setStyleSheet("font-size:18px;padding:10px")
@@ -417,20 +511,91 @@ class PcmDashboard(QtWidgets.QMainWindow):
         frames = [dataclasses.replace(f, host_time_s=f.host_time_s - t0) for f in frames]
         capture = assemble(frames, stats, self.fs)
         start = datetime.datetime.fromtimestamp(self.rec_start).astimezone()
-        trial = self.trial_edit.text().strip() or start.strftime("dash_%Y%m%d_%H%M%S")
-        argv = ["--port", self.port, "--trial-id", trial,
-                "--duration", f"{time.time() - self.rec_start:.3f}", "--fs-hz", str(self.fs)]
-        if self.notes_edit.text().strip():
-            argv += ["--notes", self.notes_edit.text().strip()]
-        meta = build_meta(parse_args(argv), start)
+        trial = self.trial_edit.text().strip()
         try:
+            meta = build_meta(parse_args(self._record_argv(trial)), start)
             paths = write_trial(capture, meta, self.args.out_dir)
-        except FileExistsError:
-            self.rec_lbl.setText(f"not saved: trial id '{trial}' already exists")
+        except (FileExistsError, SystemExit) as e:
+            reason = "trial id already exists" if isinstance(e, FileExistsError) else "invalid form"
+            self.rec_lbl.setText(f"not saved ({reason}): {trial}")
             return
         verdict = "checks OK" if capture.checks["ok"] else "CHECKS FAILED (see .json)"
         self.rec_lbl.setText(f"{verdict}, {capture.checks['samples']:,} samples\n"
                              f"saved {trial}.csv/.json/.mat in {paths['json'].parent}")
+        self._suggest_trial_id()
+        self._refresh_results(show=trial)
+
+    def _record_argv(self, trial):
+        argv = ["--port", self.port, "--trial-id", trial,
+                "--duration", f"{time.time() - self.rec_start:.3f}", "--fs-hz", str(self.fs)]
+        kind = self.type_box.currentText()
+        if kind == "noise only":
+            argv.append("--noise-only")
+        else:
+            argv += ["--excitation-type", kind, "--distance-m", f"{self.dist.value():g}"]
+            if self.made.value():
+                argv += ["--impacts", str(self.made.value())]
+        for flag, edit in [("--floor-material", self.floor_edit), ("--mount-method", self.mount_edit),
+                           ("--operator", self.operator_edit), ("--fw-commit", self.fw_edit),
+                           ("--notes", self.notes_edit)]:
+            if edit.text().strip():
+                argv += [flag, edit.text().strip()]
+        return argv
+
+    def _refresh_results(self, show=None):
+        folder = self._folder()
+        self._suggest_trial_id()
+        if not folder.exists():
+            self.folder_lbl.setText(f"{folder} (no trials yet)")
+            return
+        trials = impacts.analyze_folder(folder, self.thr.value(), self.analysis_cache)
+        self.folder_lbl.setText(f"{folder}, {len(trials)} trials, threshold "
+                                f"{self.thr.value():.0f} dB")
+        rows = impacts.summarize(trials)
+        self._fill(self.summary_table, [
+            [r["excitation"], f"{r['distance_m']:g} m", r["trials"],
+             f"{r['impacts_found']} / {'-' if r['impacts_made'] is None else r['impacts_made']}",
+             *[self._mean_sd(r, b) for b in impacts.BANDS]] for r in rows])
+        shown = next((t for t in trials if t["meta"]["trial_id"] == show), None)
+        if shown is None and show is None:
+            shown = trials[-1] if trials else None
+        if shown is not None:
+            self._show_trial(shown)
+            if show is not None:
+                self.tabs.setCurrentIndex(1)
+
+    def _show_trial(self, t):
+        meta = t["meta"]
+        if t["result"] is None:
+            self.result_lbl.setText(f"{meta['trial_id']}: noise only. It is the baseline for the "
+                                    f"trials recorded after it.")
+            self.result_table.setRowCount(0)
+            return
+        found = t["result"]["impacts"]
+        made = meta.get("impacts_made")
+        match = "" if made is None else (" (matches)" if made == len(found) else
+                                         f" <span style='color:#ffa726'>({made} made)</span>")
+        self.result_lbl.setText(
+            f"<b>{meta['trial_id']}</b>: {(meta.get('excitation') or {}).get('type')} at "
+            f"{meta.get('distance_m'):g} m, <b>{len(found)} found</b>{match}<br>"
+            f"baseline: {t['result']['baseline_source']}")
+        self._fill(self.result_table, [
+            [k, f"{i['t_s']:.2f}", *[f"{i['levels_db'][b]:.1f}" for b in impacts.BANDS]]
+            for k, i in enumerate(found, 1)])
+
+    @staticmethod
+    def _mean_sd(row, band):
+        m, sd = row[f"{band} mean dB"], row[f"{band} std dB"]
+        if m is None or math.isnan(m):
+            return "-"
+        return f"{m:.1f}" + ("" if math.isnan(sd) else f" ({sd:.1f})")
+
+    @staticmethod
+    def _fill(table, rows):
+        table.setRowCount(len(rows))
+        for r, row in enumerate(rows):
+            for c, v in enumerate(row):
+                table.setItem(r, c, QtWidgets.QTableWidgetItem(str(v)))
 
     # ---- update loop
     def _tick(self):

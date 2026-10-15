@@ -33,11 +33,26 @@ python tools/dashboard/vpu_pcm_dashboard.py --port SIM
 - Waveform: the last 3 s, high-passed at 100 Hz by default (the 41 Hz hum measured at rest otherwise dominates the view).
 - Band level: the 50 ms RMS in the chosen band, in dB above the noise baseline, with the threshold line and a dot on each detected event. The default band, 100 to 500 Hz, is the band the analysis keeps after `preprocess.decimate`.
 - Spectrogram: the last 10 s, 0 to 8 kHz (the sensor's specified band).
-- Side panel: event count and log (level above baseline and duration of each), noise baseline, and recording.
+- Side panel, three tabs: Trial (the form and Record button), Results (analysis of the last trial and of the whole day), Live (event count and log from the band level plot).
 
-The noise baseline is learned from the first 3 s after connecting, so keep still then; press Learn noise (or N) to relearn during a quiet moment. An event starts when the band level reaches the threshold (default 20 dB, the same 10x criterion used for the stomp check) and ends when it falls 6 dB below it. Min gap is the shortest quiet time between two events; raise it if one footstep is counted twice. Changing the band relearns the baseline.
+### Running trials
 
-Record (or R) saves the same three files as `python -m acquisition.record` (CSV, JSON sidecar with checks, .mat) to `data/raw/<date>/` when stopped, with the trial id and notes typed in the panel. The status bar shows the sample rate, frames, CRC errors, counter gaps and device overflows. Closing the window switches the board back to stats mode.
+1. Trial tab: pick Type "noise only" and press Record, stay still for about 30 s, press Stop. This is the noise baseline for the trials recorded after it.
+2. Set Type, Distance and Impacts made (the number of steps, stomps or drops you will make), plus floor, mount and operator once. The Trial ID fills itself in (`fs_1m_03`, numbered after the trials already saved that day); you can edit it.
+3. Press Record, make the impacts, press Stop.
+
+Stop saves the same three files as `python -m acquisition.record` (CSV, JSON sidecar with checks, .mat) to `data/raw/<date>/` and switches to the Results tab:
+
+- Last trial: each impact found, with its time and its level in dB above the noise baseline in 100 to 500 Hz, 500 to 2000 Hz and 2 to 8 kHz. If the count differs from Impacts made, it is shown in orange.
+- Summary: one row per type and distance over every trial in that day's folder, including trials recorded with `acquisition.record`: number of trials, impacts found / made, and the mean (standard deviation) level per band.
+
+The analysis is `everyday_sensing.impacts` (the same as `python -m everyday_sensing.impacts data/raw/<date>`). Each trial is measured against the latest noise-only trial recorded before it. Impacts are found in the 100 to 500 Hz and 500 to 2000 Hz bands; 2 to 8 kHz is shown but not used, because walking on tile gave clicks there with almost nothing below 2 kHz. A weight shift or a step while walking to the mark can still be counted, so check found against made.
+
+### Live view
+
+The live noise baseline is learned from the first 3 s after connecting, so keep still then; press Learn noise (or N) to relearn during a quiet moment. A live event starts when the band level reaches the threshold and ends when it falls 6 dB below it. The default threshold, 10 dB, is also the analysis threshold: in the noise recording of 2026-10-14 the 100 to 500 Hz level stayed within 7.9 dB of its median 99% of the time. Min gap is the shortest quiet time between two events; raise it if one footstep is counted twice. Changing the band relearns the baseline. The threshold set here is also used for the Results tab.
+
+The status bar shows the sample rate, frames, CRC errors, counter gaps and device overflows. Closing the window switches the board back to stats mode.
 
 Keys: Space pause display, R record, N learn noise, C clear events.
 

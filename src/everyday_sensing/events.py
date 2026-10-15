@@ -1,6 +1,7 @@
-"""Streaming band envelope and event detection for the VPU PCM stream (no Qt).
+"""Streaming band envelope and event detection for the VPU PCM stream.
 
-Used by vpu_pcm_dashboard.py. Same measure as the stomp check in
+Used live by tools/dashboard/vpu_pcm_dashboard.py and offline by everyday_sensing.impacts.
+Same measure as the stomp check in
 firmware/vpu_pcm_stream/README.md: band-pass the signal, take the RMS over a 50 ms
 window, and call it an event when that envelope rises a set number of dB above the
 median envelope of a quiet stretch (the noise baseline).

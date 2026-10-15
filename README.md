@@ -51,7 +51,17 @@ Each trial writes three files to `data/raw/<date>/` (not committed):
 - `<trial-id>.json`: all metadata flags, the repo and firmware commits, and the sanity checks.
 - `<trial-id>.mat`: the same signal, `fs_hz`, and `meta` and `checks` structs for MATLAB.
 
-The checks are printed after every trial: CRC errors, counter gaps and missing samples, device DMA overflows, clipped samples, and the sample rate measured against the host clock. The command exits non-zero if any of them fail. `python -m acquisition.record --help` lists all metadata flags.
+The checks are printed after every trial: CRC errors, counter gaps and missing samples, device DMA overflows, clipped samples, and the sample rate measured against the host clock. The command exits non-zero if any of them fail. `python -m acquisition.record --help` lists all metadata flags; `--impacts <n>` records how many steps, stomps or drops were made.
+
+The PCM dashboard (`tools/dashboard/vpu_pcm_dashboard.py`, see [its README](tools/dashboard/README.md)) does the same from a form, and analyzes each trial as soon as it is stopped.
+
+To analyze a day of trials from the command line (impacts per trial, and mean and spread per distance, in dB above the latest noise-only trial):
+
+```
+python -m everyday_sensing.impacts data/raw/<date>
+```
+
+It prints both tables and writes `impacts_trials.csv` and `impacts_summary.csv` into that folder.
 
 ## Decimation filter figures
 

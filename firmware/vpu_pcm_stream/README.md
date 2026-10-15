@@ -82,4 +82,16 @@ Every stomp, including at 2 m, is at least 18 dB above the resting noise in the 
 
 Record trials with `python -m acquisition.record` (see the main README, "Recording data"). A 10 s noise-only recording through it gave 482,537 samples with 0 CRC errors, 0 counter gaps, 0 overflows and 0 clipped samples.
 
+### Footstep check
+
+Tile floor, sensor taped, 2026-10-14. A 30 s noise-only recording (`fs_noise_01`) gave the baseline: median 50 ms RMS of 1.60 counts in 100 to 500 Hz, 0.84 in 500 to 2000 Hz and 1.02 in 2 to 8 kHz, with the 99th percentile 7.9, 5.4 and 7.5 dB above those medians. Then two trials of 5 steps on marks on a 1 m circle around the sensor (distance measured with a tape), analyzed with `python -m everyday_sensing.impacts`:
+
+| Trial | Steps made (from notes) | Impacts found | 100 to 500 Hz | 500 to 2000 Hz | 2 to 8 kHz |
+|---|---|---|---|---|---|
+| `fs_1m_01` | 5 | 4 | 9.3 to 20.6 dB | 13.6 to 20.6 dB | 9.4 to 23.1 dB |
+| `fs_1m_02` | 5 | 6 | 5.9 to 24.1 dB | 2.4 to 29.5 dB | 1.3 to 36.9 dB |
+| Both | 10 | 10 | mean 16.3, sd 6.1 dB | mean 18.3, sd 8.3 dB | mean 20.3, sd 12.1 dB |
+
+Footsteps are weaker and more variable than the stomps: one step reached only 5.9 dB in 100 to 500 Hz, against 18.7 dB for the weakest stomp. In `fs_1m_02` the sixth impact (12.37 s, 19.0 dB in 100 to 500 Hz but 2.4 dB in 500 to 2000 Hz) is probably a weight shift rather than a step, and in `fs_1m_01` one step was not found. Walking to the start mark gave peaks of 8 to 16 dB in 2 to 8 kHz with under 6 dB in both lower bands, which is why the analysis does not use 2 to 8 kHz to find impacts.
+
 TODO: drop-stand tests at measured distances, and a scope check of the PDM clock.

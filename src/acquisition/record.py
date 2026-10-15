@@ -14,6 +14,7 @@ import argparse
 import datetime
 import json
 import platform
+import re
 import subprocess
 import sys
 import time
@@ -127,9 +128,24 @@ def repo_state() -> dict:
     return {
         "repo_commit": _git("rev-parse", "HEAD"),
         "repo_dirty": None if status is None else bool(status),
-        "fw_source_commit": _git("log", "-1", "--format=%H", "--", FIRMWARE_DIR),
+        # Source files only, so README edits do not count as firmware changes.
+        "fw_source_commit": _git(
+            "log", "-1", "--format=%H", "--", f"{FIRMWARE_DIR}/*.ino", f"{FIRMWARE_DIR}/*.h"
+        ),
     }
 
+
+def distance_label(d: float) -> str:
+    """1 -> '1m', 0.5 -> '0p5m', 2.25 -> '2p25m'."""
+    return f"{d:g}".replace(".", "p") + "m"
+
+
+def next_trial_id(folder: Path, prefix: str, kind: str, distance: float) -> str:
+    """<prefix>_<distance or 'noise'>_<nn>, numbered after the trials already in folder."""
+    stem = f"{prefix}_{'noise' if kind == 'noise only' else distance_label(distance)}"
+    taken = [int(m.group(1)) for f in Path(folder).glob(f"{stem}_*.json")
+             if (m := re.fullmatch(re.escape(stem) + r"_(\d+)", f.stem))]
+    return f"{stem}_{max(taken, default=0) + 1:02d}"
 
 def _version(package: str) -> str | None:
     try:
@@ -209,6 +225,7 @@ def build_meta(args: argparse.Namespace, start: datetime.datetime) -> dict:
             "drop_height_cm": args.drop_height_cm,
             "tip": args.tip,
         },
+        "impacts_made": args.impacts,
         "sensor_mount": {"method": args.mount_method, "preload": args.preload},
         "sensor_serial": args.sensor_serial,
         "ambient_conditions": args.ambient,
@@ -261,6 +278,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--mass-g", type=float)
     p.add_argument("--drop-height-cm", type=float)
     p.add_argument("--tip")
+    p.add_argument("--impacts", type=int,
+                   help="number of footsteps, stomps or drops made during the trial")
     p.add_argument("--mount-method", help="e.g. tape plus weight")
     p.add_argument("--preload", help="e.g. mass on top of the sensor")
     p.add_argument("--sensor-serial")
@@ -269,7 +288,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--fw-commit", help="commit the flashed firmware was built from")
     p.add_argument("--overwrite", action="store_true")
     args = p.parse_args(argv)
-    excitation = (args.excitation_type, args.mass_g, args.drop_height_cm, args.tip)
+    excitation = (args.excitation_type, args.mass_g, args.drop_height_cm, args.tip, args.impacts)
     if args.noise_only and any(v is not None for v in excitation):
         p.error("--noise-only cannot be combined with excitation flags")
     if args.duration <= 0:
