@@ -66,4 +66,18 @@ One XIAO ESP32-C6, 2026-10-14, 3.072 MHz clock, sensor taped to the floor, nobod
 
 The resting signal was also run through `everyday_sensing.preprocess.decimate` (48 kHz to 1,500 Hz) without error.
 
-TODO: host receiver that writes CSV, JSON sidecar and .mat (path A step 3), response to floor impacts at measured distances, and a scope check of the PDM clock.
+### Stomp check
+
+Same setup, 75 s recording (no gaps after the startup gap at 0.05 s, 0 CRC errors). The operator stomped about 5 times at each of 0.3 m, 1 m and 2 m, in that order; the distances are as stated by the operator. Events were found as peaks of the 50 ms RMS above 100 Hz that exceed 10 times its resting median (2.39 counts), at least 0.7 s apart. They fall into three clusters separated by more than 4 s; the table assumes the clusters follow the stated order. SNR is the event's peak 50 ms RMS over the resting median in the same band; the 100 to 500 Hz column is computed on the output of `preprocess.decimate` (1,500 Hz), the band the analysis keeps.
+
+| Cluster (assumed distance) | Events | SNR above 100 Hz | SNR 100 to 500 Hz | Dominant frequency |
+|---|---|---|---|---|
+| 1 (0.3 m), 13.9 to 25.4 s | 7 | 20.4 to 44.2 dB | 18.7 to 29.6 dB | 373 to 6,517 Hz |
+| 2 (1 m), 29.6 to 37.3 s | 5 | 32.4 to 37.5 dB | 22.3 to 33.6 dB | 363 to 4,763 Hz |
+| 3 (2 m), 44.2 to 53.6 s | 6 | 25.8 to 38.9 dB | 21.3 to 31.7 dB | 317 to 6,457 Hz |
+
+One more event at 67.4 s (dominant 120 Hz) was outside the stomp plan. Clusters 1 and 3 have more events than the planned 5, so some may be steps.
+
+Every stomp, including at 2 m, is at least 18 dB above the resting noise in the 100 to 500 Hz analysis band. With the score logger, stomps at about 0.3 m were not distinguishable from rest (`firmware/vpu_score_logger/README.md`). The amplitudes do not fall off with distance in a consistent way here, which is expected with hand stomps of uneven force; a distance trend needs a repeatable excitation such as the drop stand.
+
+TODO: host receiver that writes CSV, JSON sidecar and .mat (path A step 3), drop-stand tests at measured distances, and a scope check of the PDM clock.
