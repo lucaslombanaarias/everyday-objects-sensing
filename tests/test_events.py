@@ -76,3 +76,10 @@ def test_no_events_before_baseline():
     env = BandEnvelope(FS)
     det = EventDetector(env.rate)
     assert det.process(env.process(bursts([0.5], 1.0))) == []
+
+
+def test_offset_at_start_gives_no_transient():
+    # A recording that starts away from zero must not look like an impact at t = 0.
+    x = 500.0 + bursts([], 1.0)
+    env = BandEnvelope(FS, band=(100.0, None), window_s=0.005, out_rate_hz=1000.0).process(x)
+    assert env.max() < 4 * np.median(env)

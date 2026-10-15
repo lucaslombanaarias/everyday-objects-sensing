@@ -28,7 +28,7 @@ class BandEnvelope:
             self.sos = signal.butter(order, lo, "highpass", fs=self.fs, output="sos")
         else:
             self.sos = signal.butter(order, [lo, hi], "bandpass", fs=self.fs, output="sos")
-        self.zi = np.zeros((self.sos.shape[0], 2))
+        self.zi = None  # set from the first sample, see process()
         self.win = max(1, round(window_s * self.fs))
         self.step = max(1, round(self.fs / out_rate_hz))
         self.rate = self.fs / self.step
@@ -37,7 +37,15 @@ class BandEnvelope:
         self._next_end = math.ceil(self.win / self.step) * self.step
 
     def process(self, x) -> np.ndarray:
-        y, self.zi = signal.sosfilt(self.sos, np.asarray(x, dtype=np.float64), zi=self.zi)
+        x = np.asarray(x, dtype=np.float64)
+        if self.zi is None:
+            if not x.size:
+                return np.zeros(0)
+            # Start as if the signal had always been at its first value, so a recording that
+            # starts away from zero does not produce a start-up transient (fs_2m_01 reached
+            # 9.4 counts above 100 Hz from a zero start, against a 2.05 count baseline).
+            self.zi = signal.sosfilt_zi(self.sos) * x[0]
+        y, self.zi = signal.sosfilt(self.sos, x, zi=self.zi)
         sq = np.concatenate([self._sq, y * y])
         start = self._count - self._sq.size  # stream index of sq[0]
         self._count += y.size
