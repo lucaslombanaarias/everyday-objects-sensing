@@ -61,7 +61,7 @@ To analyze a day of trials from the command line (impacts per trial, and mean an
 python -m everyday_sensing.impacts data/raw/<date>
 ```
 
-It prints both tables and writes `impacts_trials.csv` and `impacts_summary.csv` into that folder.
+It prints both tables and writes `impacts_trials.csv` and `impacts_summary.csv` into that folder. Add `--baseline <trial-id>` to measure every trial against one noise-only trial instead of the latest one before each.
 
 ## Decimation filter figures
 

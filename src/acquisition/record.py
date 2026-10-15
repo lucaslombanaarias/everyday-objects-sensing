@@ -191,8 +191,6 @@ def write_trial(capture: Capture, meta: dict, out_dir: Path, overwrite: bool = F
             "pyserial": _version("pyserial"),
         },
     }
-    paths["json"].write_text(json.dumps(sidecar, indent=2) + "\n", encoding="utf-8")
-
     scipy.io.savemat(
         paths["mat"],
         {
@@ -206,6 +204,8 @@ def write_trial(capture: Capture, meta: dict, out_dir: Path, overwrite: bool = F
         long_field_names=True,
         do_compression=True,
     )
+    # The sidecar goes last: once it exists, the trial's other files are complete.
+    paths["json"].write_text(json.dumps(sidecar, indent=2) + "\n", encoding="utf-8")
     return paths
 
 

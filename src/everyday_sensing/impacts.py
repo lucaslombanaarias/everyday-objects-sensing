@@ -116,6 +116,15 @@ def load_trial(json_path: Path) -> tuple[dict, np.ndarray, float]:
     return meta, mat["counts"].ravel(), float(np.squeeze(mat["fs_hz"]))
 
 
+def _try_load(json_path: Path):
+    """load_trial, or None if the trial's files cannot be read yet: sidecars written by
+    older versions of acquisition.record could appear before their .mat was complete."""
+    try:
+        return load_trial(json_path)
+    except Exception:  # a partial .mat fails in several ways (KeyError, zlib, MatReadError)
+        return None
+
+
 def is_noise(meta: dict) -> bool:
     return bool(meta.get("noise_only")) or (meta.get("excitation") or {}).get("type") == "none"
 
@@ -133,11 +142,20 @@ def trial_jsons(folder: Path) -> list[Path]:
     return [p for _, p in sorted(found)]
 
 
-def analyze_folder(folder, threshold_db: float = THRESHOLD_DB, cache: dict | None = None):
+def analyze_folder(
+    folder,
+    threshold_db: float = THRESHOLD_DB,
+    cache: dict | None = None,
+    baseline_trial: str | None = None,
+):
     """Analyze every trial in folder. Returns one dict per trial, oldest first: "meta" (the
-    sidecar) and "result" (find_impacts output, None for noise-only trials). cache keeps
-    results keyed by file, modification time, threshold and baseline trial, so repeated
-    calls only analyze what changed."""
+    sidecar) and either "result" (find_impacts output) or, for noise-only trials,
+    "noise_baseline" (median envelope per band) with "result" None.
+
+    baseline_trial names the noise-only trial to measure every trial against; None picks,
+    per trial, the latest noise-only trial recorded before it. cache keeps results keyed
+    by file, modification time, threshold and baseline trial, so repeated calls only
+    analyze what changed."""
     cache = {} if cache is None else cache
     paths = trial_jsons(folder)
     noises = []
@@ -147,20 +165,32 @@ def analyze_folder(folder, threshold_db: float = THRESHOLD_DB, cache: dict | Non
         if is_noise(meta):
             key = ("noise", str(path), path.stat().st_mtime)
             if key not in cache:
-                _, counts, fs = load_trial(path)
-                cache[key] = noise_baseline(counts, fs)
+                loaded = _try_load(path)
+                if loaded is None:
+                    continue
+                cache[key] = noise_baseline(loaded[1], loaded[2])
             noises.append((meta.get("start_time", ""), meta["trial_id"], cache[key]))
             trials.append({"meta": meta, "noise_baseline": cache[key], "result": None})
+    chosen = None
+    if baseline_trial is not None:
+        chosen = next((n for n in noises if n[1] == baseline_trial), None)
+        if chosen is None:
+            raise ValueError(f"no noise-only trial named {baseline_trial!r} in {folder}")
     for path in paths:
         meta = json.loads(path.read_text(encoding="utf-8"))
         if is_noise(meta):
             continue
-        before = [n for n in noises if n[0] <= meta.get("start_time", "")]
-        ref = before[-1] if before else (noises[0] if noises else None)
+        if chosen is not None:
+            ref = chosen
+        else:
+            before = [n for n in noises if n[0] <= meta.get("start_time", "")]
+            ref = before[-1] if before else (noises[0] if noises else None)
         key = (str(path), path.stat().st_mtime, threshold_db, ref[1] if ref else None)
         if key not in cache:
-            _, counts, fs = load_trial(path)
-            result = find_impacts(counts, fs, ref[2] if ref else None, threshold_db)
+            loaded = _try_load(path)
+            if loaded is None:
+                continue
+            result = find_impacts(loaded[1], loaded[2], ref[2] if ref else None, threshold_db)
             if ref:
                 result["baseline_source"] = ref[1]
             cache[key] = result
@@ -248,12 +278,19 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("folder", type=Path, help="a data/raw/<date> folder")
     parser.add_argument("--threshold-db", type=float, default=THRESHOLD_DB)
+    parser.add_argument("--baseline", metavar="TRIAL_ID",
+                        help="noise-only trial to measure all trials against "
+                             "(default: the latest one before each trial)")
     args = parser.parse_args(argv)
-    trials = analyze_folder(args.folder, args.threshold_db)
+    try:
+        trials = analyze_folder(args.folder, args.threshold_db, baseline_trial=args.baseline)
+    except ValueError as e:
+        parser.error(str(e))
     for t in trials:
         meta = t["meta"]
         if t["result"] is None:
-            print(f"{meta['trial_id']}: noise only")
+            levels = ", ".join(f"{b} {v:.2f}" for b, v in t["noise_baseline"].items())
+            print(f"{meta['trial_id']}: noise only, baseline (counts) {levels}")
             continue
         found = len(t["result"]["impacts"])
         made = meta.get("impacts_made")

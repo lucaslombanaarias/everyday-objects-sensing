@@ -22,6 +22,7 @@ Requires the repo's Python package (pip install -r requirements.txt from the rep
 import argparse
 import dataclasses
 import datetime
+import json
 import math
 import sys
 import threading
@@ -66,6 +67,7 @@ BANDS = {
 }
 COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb6a"}
 TRIAL_TYPES = ["footsteps", "stomp", "drop", "tap", "noise only"]
+AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 
 
 
@@ -227,6 +229,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.rec_start = None
         self.events = []
         self.analysis_cache = {}
+        self.shown_id = None
         self.hp_sos = signal.butter(4, 100, "highpass", fs=self.fs, output="sos")
         self.setWindowTitle("VPU PCM - live")
         self.resize(1500, 950)
@@ -380,8 +383,20 @@ class PcmDashboard(QtWidgets.QMainWindow):
                                           "100-500", "500-2k", "2-8k"])
         self.folder_lbl = QtWidgets.QLabel(wordWrap=True, styleSheet="font-size:12px;color:#8b949e")
         refresh = QtWidgets.QPushButton("Refresh")
-        refresh.clicked.connect(self._refresh_results)
-        results = page([cap("Last trial (dB above the noise baseline)"), self.result_lbl,
+        refresh.clicked.connect(lambda: self._refresh_results(show=self.shown_id))
+        self.baseline_box = QtWidgets.QComboBox()
+        self.baseline_box.addItem(AUTO_BASELINE, None)
+        self.baseline_box.currentIndexChanged.connect(
+            lambda _: self._refresh_results(show=self.shown_id))
+        baseline_row = QtWidgets.QHBoxLayout()
+        baseline_row.addWidget(QtWidgets.QLabel("Baseline"))
+        baseline_row.addWidget(self.baseline_box, 1)
+        self.noise_table = self._table(["noise trial", "time", "100-500", "500-2k", "2-8k"])
+        self.noise_table.setMaximumHeight(120)
+        results = page([baseline_row,
+                        cap("Noise-only trials: median 50 ms RMS (counts), bands in Hz"),
+                        self.noise_table,
+                        cap("Last trial (dB above the noise baseline)"), self.result_lbl,
                         self.result_table, cap("All trials in the folder: mean (sd) dB per impact, bands in Hz"),
                         self.summary_table, self.folder_lbl, refresh])
 
@@ -523,7 +538,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.rec_lbl.setText(f"{verdict}, {capture.checks['samples']:,} samples\n"
                              f"saved {trial}.csv/.json/.mat in {paths['json'].parent}")
         self._suggest_trial_id()
-        self._refresh_results(show=trial)
+        self._refresh_results(show=trial, switch_tab=True)
 
     def _record_argv(self, trial):
         argv = ["--port", self.port, "--trial-id", trial,
@@ -542,27 +557,53 @@ class PcmDashboard(QtWidgets.QMainWindow):
                 argv += [flag, edit.text().strip()]
         return argv
 
-    def _refresh_results(self, show=None):
+    def _refresh_results(self, show=None, switch_tab=False):
         folder = self._folder()
         self._suggest_trial_id()
         if not folder.exists():
             self.folder_lbl.setText(f"{folder} (no trials yet)")
             return
-        trials = impacts.analyze_folder(folder, self.thr.value(), self.analysis_cache)
+        chosen = self._sync_baselines(folder)
+        trials = impacts.analyze_folder(folder, self.thr.value(), self.analysis_cache, chosen)
+        noises = [t for t in trials if t["result"] is None]
+        self._fill(self.noise_table, [
+            [t["meta"]["trial_id"], t["meta"].get("start_time", "")[11:19],
+             *[f"{t['noise_baseline'][b]:.2f}" for b in impacts.BANDS]] for t in noises])
         self.folder_lbl.setText(f"{folder}, {len(trials)} trials, threshold "
-                                f"{self.thr.value():.0f} dB")
+                                f"{self.thr.value():.0f} dB, baseline "
+                                f"{chosen or 'automatic'}")
         rows = impacts.summarize(trials)
         self._fill(self.summary_table, [
             [r["excitation"], f"{r['distance_m']:g} m", r["trials"],
              f"{r['impacts_found']} / {'-' if r['impacts_made'] is None else r['impacts_made']}",
              *[self._mean_sd(r, b) for b in impacts.BANDS]] for r in rows])
         shown = next((t for t in trials if t["meta"]["trial_id"] == show), None)
-        if shown is None and show is None:
+        if shown is None:
             shown = trials[-1] if trials else None
         if shown is not None:
+            self.shown_id = shown["meta"]["trial_id"]
             self._show_trial(shown)
-            if show is not None:
+            if switch_tab:
                 self.tabs.setCurrentIndex(1)
+
+    def _sync_baselines(self, folder):
+        """Refill the baseline dropdown with the folder's noise-only trials, keeping the
+        selection if that trial still exists. Returns the chosen trial id (None = auto)."""
+        current = self.baseline_box.currentData()
+        ids = []
+        for path in impacts.trial_jsons(folder):
+            meta = json.loads(path.read_text(encoding="utf-8"))
+            if impacts.is_noise(meta):
+                ids.append(meta["trial_id"])
+        self.baseline_box.blockSignals(True)
+        self.baseline_box.clear()
+        self.baseline_box.addItem(AUTO_BASELINE, None)
+        for trial_id in ids:
+            self.baseline_box.addItem(trial_id, trial_id)
+        idx = self.baseline_box.findData(current) if current in ids else 0
+        self.baseline_box.setCurrentIndex(idx)
+        self.baseline_box.blockSignals(False)
+        return self.baseline_box.currentData()
 
     def _show_trial(self, t):
         meta = t["meta"]
@@ -573,12 +614,14 @@ class PcmDashboard(QtWidgets.QMainWindow):
             return
         found = t["result"]["impacts"]
         made = meta.get("impacts_made")
+        base = t["result"]["baseline"]
+        levels = ", ".join(f"{b} {base[b]:.2f}" for b in impacts.BANDS)
         match = "" if made is None else (" (matches)" if made == len(found) else
                                          f" <span style='color:#ffa726'>({made} made)</span>")
         self.result_lbl.setText(
             f"<b>{meta['trial_id']}</b>: {(meta.get('excitation') or {}).get('type')} at "
             f"{meta.get('distance_m'):g} m, <b>{len(found)} found</b>{match}<br>"
-            f"baseline: {t['result']['baseline_source']}")
+            f"baseline: {t['result']['baseline_source']} ({levels} counts)")
         self._fill(self.result_table, [
             [k, f"{i['t_s']:.2f}", *[f"{i['levels_db'][b]:.1f}" for b in impacts.BANDS]]
             for k, i in enumerate(found, 1)])

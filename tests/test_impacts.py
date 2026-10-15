@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -101,6 +102,50 @@ def test_folder_uses_latest_preceding_noise_trial(tmp_path):
     drop = rows[0]["100-500 Hz mean dB"] - rows[1]["100-500 Hz mean dB"]
     assert drop == pytest.approx(20 * np.log10(3), abs=1.5)
     assert len(trial_rows(trials)) == 5
+
+
+def test_chosen_baseline_applies_to_every_trial(tmp_path):
+    save(tmp_path, "fs_noise_01", signal_with(seed=1), 0, ["--noise-only"])
+    save(tmp_path, "fs_1m_01", signal_with([1.0]), 1,
+         ["--distance-m", "1", "--excitation-type", "footsteps"])
+    # Twice the noise: every level measured against it is about 6 dB lower.
+    save(tmp_path, "fs_noise_02", 2 * signal_with(seed=2), 2, ["--noise-only"])
+    folder = tmp_path / "2026-10-14"
+    auto = analyze_folder(folder)[1]["result"]
+    forced = analyze_folder(folder, baseline_trial="fs_noise_02")[1]["result"]
+    assert auto["baseline_source"] == "fs_noise_01"
+    assert forced["baseline_source"] == "fs_noise_02"
+    a = auto["impacts"][0]["levels_db"]["100-500 Hz"]
+    b = forced["impacts"][0]["levels_db"]["100-500 Hz"]
+    assert a - b == pytest.approx(20 * np.log10(2), abs=1.0)
+    with pytest.raises(ValueError):
+        analyze_folder(folder, baseline_trial="fs_noise_99")
+
+
+def test_trial_still_being_written_is_skipped(tmp_path):
+    save(tmp_path, "fs_noise_01", signal_with(seed=1), 0, ["--noise-only"])
+    save(tmp_path, "fs_1m_01", signal_with([1.0]), 1,
+         ["--distance-m", "1", "--excitation-type", "footsteps"])
+    folder = tmp_path / "2026-10-14"
+    (folder / "fs_1m_01.mat").write_bytes(b"MATLAB 5.0 MAT-file, truncated")
+    trials = analyze_folder(folder)
+    assert [t["meta"]["trial_id"] for t in trials] == ["fs_noise_01"]
+
+
+def test_sidecar_is_written_last(tmp_path, monkeypatch):
+    import acquisition.record as record
+
+    seen = []
+    real = record.scipy.io.savemat
+
+    def savemat(path, *args, **kwargs):
+        seen.append(Path(path).with_suffix(".json").exists())
+        return real(path, *args, **kwargs)
+
+    monkeypatch.setattr(record.scipy.io, "savemat", savemat)
+    save(tmp_path, "fs_1m_01", signal_with([1.0]), 1,
+         ["--distance-m", "1", "--excitation-type", "footsteps"])
+    assert seen == [False]
 
 
 def test_cache_reuses_results(tmp_path):
