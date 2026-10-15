@@ -52,3 +52,15 @@ One XIAO ESP32-C6 on 2026-10-14, sensor taped to the floor, 40 s USB recording (
 | `ones` at rest, first 5 s after calibration | median 1,877, std 14.2, range 1,827 to 1,920 |
 
 The line period is longer than the window because printing each line takes time too. TODO: a longer recording to check drop rate over a full test block.
+
+### Tap check
+
+Same board and mounting, 60 s recording (14,938 lines, 0 dropped, threshold 1.2650). The operator first tapped the floor near the sensor about 5 times with a fingertip, then tapped the sensor directly 5 times.
+
+| | Result |
+|---|---|
+| `ones` at rest, first 5 s | median 1,875, std 14.9 |
+| Floor taps | Not distinguishable from rest. Outside the direct taps, the largest deviation from 1,875 in any 1 s interval was 31 to 66 counts, and the score's only non-zero windows (7 of them) were all below 5. |
+| Direct taps on the sensor | 5 bursts, 0.14 to 0.20 s long, `ones` between 265 and 3,228, score 100 in each. |
+
+So the logging chain works, but a fingertip tap on the floor near the sensor does not show up in `ones` or the score. TODO: tap distance was not measured; repeat with the sweep's real excitation (drop stand) at 0.5 m before running the sweep.
