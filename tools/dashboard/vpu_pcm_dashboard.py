@@ -345,6 +345,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         # Trial: what is being recorded
         self.type_box = QtWidgets.QComboBox()
         self.type_box.addItems(TRIAL_TYPES)
+        self.notes_by_type = {}
+        self.last_type = self.type_box.currentText()
         self.dist = spin(0, 100, 1.0, 0.5, decimals=2, suffix=" m")
         self.made = QtWidgets.QSpinBox(minimum=0, maximum=999, value=0, specialValueText="not given")
         self.floor_edit = QtWidgets.QLineEdit(placeholderText="e.g. tile")
@@ -440,9 +442,18 @@ class PcmDashboard(QtWidgets.QMainWindow):
         return Path(self.args.out_dir) / datetime.date.today().isoformat()
 
     def _type_changed(self):
-        noise = self.type_box.currentText() == "noise only"
+        kind = self.type_box.currentText()
+        # Notes are kept per type, so footstep notes do not end up on a noise trial.
+        self.notes_by_type[self.last_type] = self.notes_edit.text()
+        self.notes_edit.setText(self.notes_by_type.get(kind, ""))
+        self.last_type = kind
+        noise = kind == "noise only"
         for w in (self.dist, self.made):
             w.setEnabled(not noise)
+
+    def _trial_taken(self, trial):
+        stem = self._folder() / trial
+        return any(stem.with_suffix(ext).exists() for ext in (".json", ".mat", ".csv"))
 
     def _suggest_trial_id(self):
         prefix = self.prefix_edit.text().strip() or "trial"
@@ -512,15 +523,19 @@ class PcmDashboard(QtWidgets.QMainWindow):
     def _set_recording(self, on):
         link = self.link
         if on:
-            if not self.trial_edit.text().strip():
+            note = ""
+            taken = self.trial_edit.text().strip()
+            if not taken or self._trial_taken(taken):
                 self._suggest_trial_id()
+                if taken:
+                    note = f" ({taken} was already used)"
             with link.lock:
                 link.recording = []
                 self.rec_counts = (link.parser.crc_errors, link.parser.skipped_bytes)
             self.rec_start = time.time()
             self.rec_btn.setText("■ Stop")
             self.rec_btn.setStyleSheet("font-size:18px;padding:10px;background:#b71c1c;color:white")
-            self.rec_lbl.setText(f"recording {self.trial_edit.text().strip()}...")
+            self.rec_lbl.setText(f"recording {self.trial_edit.text().strip()}...{note}")
             return
         self.rec_btn.setText("● Record")
         self.rec_btn.setStyleSheet("font-size:18px;padding:10px")
@@ -536,16 +551,23 @@ class PcmDashboard(QtWidgets.QMainWindow):
         frames = [dataclasses.replace(f, host_time_s=f.host_time_s - t0) for f in frames]
         capture = assemble(frames, stats, self.fs)
         start = datetime.datetime.fromtimestamp(self.rec_start).astimezone()
+        # The recording is always saved: a taken ID gets the next free one, and a form the
+        # recorder rejects is saved with the basic fields only.
         trial = self.trial_edit.text().strip()
+        warning = ""
+        if self._trial_taken(trial):
+            self._suggest_trial_id()
+            warning = f" (as {self.trial_edit.text()}, {trial} was already used)"
+            trial = self.trial_edit.text()
         try:
-            meta = build_meta(parse_args(self._record_argv(trial)), start)
-            paths = write_trial(capture, meta, self.args.out_dir)
-        except (FileExistsError, SystemExit) as e:
-            reason = "trial id already exists" if isinstance(e, FileExistsError) else "invalid form"
-            self.rec_lbl.setText(f"not saved ({reason}): {trial}")
-            return
+            args = parse_args(self._record_argv(trial))
+        except SystemExit:
+            args = parse_args(self._record_argv(trial)[:8] + ["--notes", "form rejected: "
+                                                               + self.notes_edit.text()])
+            warning += " (form rejected, saved with basic fields only)"
+        paths = write_trial(capture, build_meta(args, start), self.args.out_dir)
         verdict = "checks OK" if capture.checks["ok"] else "CHECKS FAILED (see .json)"
-        self.rec_lbl.setText(f"{verdict}, {capture.checks['samples']:,} samples\n"
+        self.rec_lbl.setText(f"{verdict}, {capture.checks['samples']:,} samples{warning}\n"
                              f"saved {trial}.csv/.json/.mat in {paths['json'].parent}")
         self._suggest_trial_id()
         self._refresh_results(show=trial, switch_tab=True)
