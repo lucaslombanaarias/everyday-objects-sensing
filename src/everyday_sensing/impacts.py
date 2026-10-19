@@ -104,6 +104,12 @@ REPORTED = (DETECT, *BANDS)
 """Levels reported per impact: the detection level first, then the 50 ms band levels."""
 THRESHOLD_DB = DETECTION.threshold_db
 MIN_GAP_S = DETECTION.min_gap_s
+EDGE_S = 1.0
+"""Events this close to the start or end of a recording are flagged "edge" (walking in or
+out, the operator's hand); they are flagged only, never dropped."""
+TAGS = ("true_impact", "walk_in_out", "other_noise", "unknown")
+UNREVIEWED = "unreviewed"
+EVENT_COLUMNS = ("event", "t_s", "timestamp", "peak_db", "flag", "annotation")
 PEAK_WINDOW_S = 0.05
 """Half-width of the window in which each band's level is read around a detected peak."""
 QUIET_WINDOW_S = DETECTION.quiet_window_s
@@ -174,7 +180,8 @@ def find_impacts(
             centre, half = int(round(t * band_rate)) - 1, max(1, int(PEAK_WINDOW_S * band_rate))
             row[name] = float(lv[max(0, centre - half) : centre + half + 1].max())
         impacts.append({"t_s": t, "levels_db": row})
-    return {"baseline": baseline, "baseline_source": source, "impacts": impacts}
+    return {"baseline": baseline, "baseline_source": source, "impacts": impacts,
+            "duration_s": np.asarray(x).size / fs}
 
 
 # --------------------------------------------------------------------------- folders
@@ -386,8 +393,93 @@ def _versioned(rows: list[dict], detection: Detection) -> list[dict]:
             for r in rows]
 
 
-def trial_analysis(t: dict, detection: Detection = DETECTION) -> dict:
-    """The per-trial analysis record written next to the folder outputs."""
+def event_rows(t: dict) -> list[dict]:
+    """One row per detected event, for events_<trial>.csv. t_s is from the first sample of
+    the recording to the end of the detection window at the event's peak; timestamp is
+    the trial's start_time plus t_s (start_time is to the second, taken when recording
+    was started, in sidecars before meta_version 2, so those timestamps are +-1 s)."""
+    meta, result = t["meta"], t["result"]
+    try:
+        start = datetime.datetime.fromisoformat(meta["start_time"])
+    except (KeyError, TypeError, ValueError):
+        start = None
+    rows = []
+    for k, imp in enumerate(result["impacts"], 1):
+        when = imp["t_s"]
+        edge = when < EDGE_S or when > result["duration_s"] - EDGE_S
+        rows.append({
+            "event": k,
+            "t_s": round(when, 3),
+            "timestamp": "" if start is None else (
+                start + datetime.timedelta(seconds=when)).isoformat(timespec="milliseconds"),
+            "peak_db": round(imp["levels_db"][DETECT], 2),
+            "flag": "edge" if edge else "",
+            "annotation": UNREVIEWED,
+        })
+    return rows
+
+
+def read_events(path: Path) -> list[dict]:
+    try:
+        with Path(path).open(newline="", encoding="utf-8") as f:
+            return list(csv.DictReader(f))
+    except FileNotFoundError:
+        return []
+
+
+def _write_events(path: Path, rows: list[dict]) -> None:
+    with Path(path).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=EVENT_COLUMNS)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def write_events(path: Path, rows: list[dict]) -> list[dict]:
+    """Write events_<trial>.csv, keeping the annotation of each event already in the file
+    at the same time (to 1 ms). Returns the rows written."""
+    old = {round(float(r["t_s"]), 3): r.get("annotation") or UNREVIEWED
+           for r in read_events(path)}
+    rows = [{**r, "annotation": old.get(r["t_s"], r["annotation"])} for r in rows]
+    _write_events(path, rows)
+    return rows
+
+
+def save_tags(path: Path, tags: dict[int, str]) -> list[dict]:
+    """Set the annotation of events (by event number) in events_<trial>.csv."""
+    for tag in tags.values():
+        if tag not in (*TAGS, UNREVIEWED):
+            raise ValueError(f"tag must be one of {', '.join(TAGS)} (got {tag!r})")
+    rows = read_events(path)
+    for r in rows:
+        r["annotation"] = tags.get(int(r["event"]), r["annotation"])
+    _write_events(path, rows)
+    return rows
+
+
+def count_row(t: dict, events: list[dict]) -> dict:
+    """Made against found for one trial, with the edge events and the review tags."""
+    meta, result = t["meta"], t["result"]
+    made, found = meta.get("impacts_made"), len(result["impacts"])
+    recorded = meta.get("baseline_noise_id")
+    return {
+        "trial_id": meta["trial_id"],
+        "excitation": meta["excitation"]["type"],
+        "excitation_point_id": meta.get("excitation_point_id"),
+        "distance_m": meta.get("distance_m"),
+        "mount": meta["sensor_mount"]["method"],
+        "impacts_made": made,
+        "impacts_found": found,
+        "difference": None if made is None else found - made,
+        "edge_events": sum(e["flag"] == "edge" for e in events),
+        **{tag: sum(e["annotation"] == tag for e in events) for tag in (*TAGS, UNREVIEWED)},
+        "baseline_used": result["baseline_source"],
+        "baseline_recorded": recorded,
+        "baseline_mismatch": bool(recorded) and recorded != result["baseline_source"],
+    }
+
+
+def trial_analysis(t: dict, detection: Detection = DETECTION, events=None) -> dict:
+    """The per-trial analysis record, <trial>.analysis.json."""
     meta, result = t["meta"], t["result"]
     out = {
         "trial_id": meta["trial_id"],
@@ -397,28 +489,36 @@ def trial_analysis(t: dict, detection: Detection = DETECTION) -> dict:
     if result is None:
         out["noise_baseline_counts"] = t["noise_baseline"]
         return out
-    made = meta.get("impacts_made")
-    found = len(result["impacts"])
+    events = event_rows(t) if events is None else events
     out.update({
-        "baseline_source": result["baseline_source"],
+        **count_row(t, events),
         "baseline_counts": result["baseline"],
-        "impacts_made": made,
-        "impacts_found": found,
-        "difference": None if made is None else found - made,
+        "duration_s": result["duration_s"],
+        "edge_s": EDGE_S,
+        "events": events,
     })
     return out
 
 
 def write_outputs(trials: list[dict], out: Path, detection: Detection = DETECTION) -> Path:
-    """impacts_trials.csv, impacts_summary.csv and <trial>.analysis.json in out."""
+    """impacts_trials.csv, impacts_summary.csv, impacts_counts.csv, and per trial
+    events_<trial>.csv (keeping any annotations already in it) and <trial>.analysis.json,
+    in out."""
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     write_csv(out / "impacts_trials.csv", _versioned(trial_rows(trials), detection))
     write_csv(out / "impacts_summary.csv", _versioned(summarize(trials), detection))
+    counts = []
     for t in trials:
-        record = trial_analysis(t, detection)
-        (out / f"{t['meta']['trial_id']}.analysis.json").write_text(
+        trial_id = t["meta"]["trial_id"]
+        events = None
+        if t["result"] is not None:
+            events = write_events(out / f"events_{trial_id}.csv", event_rows(t))
+            counts.append(count_row(t, events))
+        record = trial_analysis(t, detection, events)
+        (out / f"{trial_id}.analysis.json").write_text(
             json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    write_csv(out / "impacts_counts.csv", _versioned(counts, detection))
     return out
 
 
@@ -448,12 +548,14 @@ def main(argv: list[str] | None = None) -> None:
             levels = ", ".join(f"{b} {v:.2f}" for b, v in t["noise_baseline"].items())
             print(f"{meta['trial_id']}: noise only, baseline (counts) {levels}")
             continue
-        found = len(t["result"]["impacts"])
-        made = meta.get("impacts_made")
+        row = count_row(t, event_rows(t))
         print(
-            f"{meta['trial_id']}: {meta.get('distance_m')} m, {found} impacts"
-            + (f" ({made} made)" if made is not None else "")
-            + f", baseline {t['result']['baseline_source']}"
+            f"{meta['trial_id']}: {meta.get('distance_m')} m, {row['impacts_found']} found"
+            + ("" if row["impacts_made"] is None else
+               f", {row['impacts_made']} made, difference {row['difference']:+d}")
+            + (f", {row['edge_events']} at the edges" if row["edge_events"] else "")
+            + f", baseline {row['baseline_used']}"
+            + (f" (recorded: {row['baseline_recorded']})" if row["baseline_mismatch"] else "")
         )
     summary = summarize(trials)
     heads = "  ".join(f"{b} mean (sd)" for b in REPORTED)
@@ -470,7 +572,8 @@ def main(argv: list[str] | None = None) -> None:
     detection = detection_for(args.threshold_db)
     out = write_outputs(trials, analysis_folder(args.folder, detection, args.baseline), detection)
     print(f"\ndetection {detection.describe()}")
-    print(f"wrote impacts_trials.csv, impacts_summary.csv and <trial>.analysis.json to {out}")
+    print(f"wrote impacts_trials.csv, impacts_summary.csv, impacts_counts.csv, "
+          f"events_<trial>.csv and <trial>.analysis.json to {out}")
 
 
 if __name__ == "__main__":
