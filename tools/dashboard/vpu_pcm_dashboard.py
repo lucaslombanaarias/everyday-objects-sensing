@@ -370,7 +370,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
     def _build_panel(self):
         tabs = QtWidgets.QTabWidget()
         tabs.setMinimumWidth(480)
-        tabs.setStyleSheet("QWidget#tab{background:#161b22} QLabel{color:#d0d4d8}")
+        tabs.setStyleSheet("QWidget#tab{background:#161b22} QLabel{color:#d0d4d8} "
+                           "QCheckBox{color:#d0d4d8}")
         cap = lambda text: QtWidgets.QLabel(text, styleSheet="font-size:14px;color:#8b949e",
                                             wordWrap=True)
         center = QtCore.Qt.AlignmentFlag.AlignCenter
@@ -933,8 +934,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
 
     # ---- trial plot
     def _trial_plots(self):
-        wave = pg.PlotWidget(title="5 ms RMS (orange) and its threshold; waveform faint; "
-                                   "hollow = below threshold")
+        # Short enough for the side panel; the README explains the markers.
+        wave = pg.PlotWidget(title="5 ms RMS (orange), threshold, events")
         wave.setLabel("bottom", "time from start", "s")
         wave.setLabel("left", "counts")
         wave.showGrid(x=True, y=True, alpha=0.2)
@@ -987,7 +988,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.trial_plot.addItem(pg.InfiniteLine(
             tr["threshold_counts"], angle=0, pen=thr_pen,
             label=f"threshold {impacts.THRESHOLD_DB:g} dB (5 ms RMS)",
-            labelOpts={"color": COLORS["thr"], "position": 0.08}))
+            labelOpts={"color": COLORS["thr"], "position": 0.02,
+                       "anchors": [(0, 1), (0, 1)]}))  # left-aligned, above the line
         times = [float(e["t_s"]) for e in self.shown_events]
         dbs = [float(e["peak_db"]) for e in self.shown_events]
         brushes = [pg.mkBrush(COLORS["edge"] if e["flag"] == "edge" else COLORS["event"])

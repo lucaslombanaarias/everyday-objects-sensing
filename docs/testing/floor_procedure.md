@@ -249,6 +249,10 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 
 The Results tab opens on the trial just recorded. The header shows made, found and the difference (orange when not zero), edge events, tags, and any peaks just below the threshold.
 
+![What a trial looks like in the dashboard](../figures/dashboard_trial_example.png)
+
+The PCM dashboard on `bare_trial_2m_01` (10 stomps at 2 m, bare sensor, 18 October evening session): the full window, then the whole Results tab, which scrolls in the window. No board was attached when this was taken, so the live view on the left shows the synthetic SIM stream. The summary table at the bottom groups trials by excitation and radius only, so the bare-sensor and vase trials of that session are pooled there.
+
 | On the plot | Meaning |
 |---|---|
 | Bold orange curve | The RMS over the 5 ms window. This is what the detector tests. |
