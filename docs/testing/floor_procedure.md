@@ -13,27 +13,48 @@ Write these down before the first trial and do not change them during a session.
 | Measurand | The VPU output: uncalibrated PCM counts (int16, full scale ±32,768), an acceleration-type signal per the sponsor, with no conversion to m/s². Every level reported (event dB, thresholds, plots) is in dB relative to that session's noise baseline, 20·log10(RMS / baseline RMS), not an absolute unit. |
 | Detection criterion (det-v1) | High-pass 100 Hz (4th-order Butterworth), RMS over a 5 ms detection window evaluated 1,000 times per second, event when the RMS peaks at least **14 dB** above the noise baseline, peaks closer than **0.25 s** merged into the highest. |
 | Floor | One floor per session. Another floor is another session (or at least another block with its own baseline). |
-| Impact points | One fixed point per radius (P0.5, P1, P2, P3). All drops and stomps at a radius land there. |
+| Impact points | One fixed point per radius (P0.5, P1, P2; P3 for extensions). All drops and stomps at a radius land there. |
 | Recording window | 3 s still after Record, the excitation, 3 s still before Stop. |
 | Footwear | One footwear per block, written in Notes. Hard soles and socks are different conditions. |
 
-## 1. Test matrix and priority
+## 1. Test plan
 
-Run the blocks in this order. Controlled excitation comes first, so the sensor and detector are trusted before any human walking. Each floor gets the core blocks (A, B, C); walking and mount comparisons follow when time allows.
+Every floor gets the core plan, on two different days. Extensions are run only after the core on that floor has passed its check (below). A few trials whose counts are fully explained are worth more than a large matrix with unreviewed events.
 
-| Block | Excitation (form value) | Radii | Repetitions | Impacts made | Approx. time |
+### Core plan (every floor, every session)
+
+| Block | Excitation (form value) | Radii | Repetitions | Impacts made | Trials |
 |---|---|---|---|---|---|
-| N | noise only | none | 1 per block, 60 s | 0 | 2 min |
-| A | `ball_drop` (or `drop_stand`), single | 0.5, 1, 2, 3 m | 5 trials per radius | 1 | 15 min |
-| B | `ball_drop`, double | 0.5, 1, 2, 3 m | 5 trials per radius | 2 | 15 min |
-| C | `stomp` | 1, 2, 3 m | 3 trials per radius | 10 | 10 min |
-| D | `single_step`, then `double_step` | 1, 2, 3 m | 3 to 5 per radius each | 1 or 2 | 15 min |
-| E | `walking`, one lap of a circle | 1, 2, 3 m | 3 laps per radius | marks + 1 | 20 min |
-| F | `ball_drop`, mount comparison | 1 m | 5 per mount | 1 | 20 min |
+| N | noise only | none | 1 per block, 60 s | 0 | 3 |
+| A | `ball_drop` (or `drop_stand`), single | 0.5, 1, 2 m | 5 per radius | 1 | 15 |
+| B | `ball_drop`, double | 0.5, 1, 2 m | 5 per radius | 2 | 15 |
+| C | `stomp` | 1, 2 m | 3 per radius | 10 | 6 |
 
-**Short on time:** one noise baseline, then blocks A and B at 0.5, 1 and 2 m, then C at 1 and 2 m. That is a complete controlled dataset for one floor in under an hour.
+About 36 trials plus baselines, under an hour.
 
-Shuffle the radius order for each block and write it on the session sheet before starting (for example 2, 0.5, 3, 1). Going near to far every time mixes distance with fatigue, drift and whatever changes in the building over the hour.
+### Core check (before any extension)
+
+The core on a floor passes when:
+- every event in blocks A to C is tagged, and every difference between made and found is explained by a tag, a near-miss marker, or a note;
+- every noise baseline is at or below the false-alarm limit in section 8;
+- no trial failed the checks in section 12, or each one that did was repeated.
+
+Misses at 2 m are a result, not a failure. Unexplained events are a failure.
+
+### Repeat on a second day
+
+Run the core again on the same floor, with the same mount, ball, and drop height, on a different day and at a different time of day. Compare found against made per radius between the two days before using either in a report. A difference between days is a systematic error to find, not noise to average away.
+
+### Extensions (only after the core passes on that floor)
+
+| Block | Excitation | Radii | Repetitions | Impacts made | When |
+|---|---|---|---|---|---|
+| A3, B3, C3 | as A, B, C | 3 m | as above | as above | room allows 3 m |
+| D | `single_step`, then `double_step` | 1, 2, 3 m | 3 to 5 each | 1 or 2 | before any walking |
+| E | `walking`, one lap | 1, 2, 3 m | 3 laps per radius | marks + 1 | after D is clean |
+| F | `ball_drop`, mount or object | 1 m | 5 per mount | 1 | when comparing mounts or enclosures |
+
+Shuffle the radius order for each block and write it on the session sheet before starting (for example 2, 0.5, 1). Going near to far every time mixes distance with fatigue, drift, and whatever changes in the building over the hour.
 
 ## 2. Equipment
 
@@ -190,13 +211,13 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 - Keep the stomp force as even as possible. At 2 m and beyond, the softest stomps are the ones that fall below the threshold.
 - Three trials per radius. Write the footwear in Notes.
 
-### D. Single and double step
+### D. Single and double step (extension)
 
 - Single step: the walker starts still, both feet together one step outside the P mark, steps one foot onto P, and **freezes in that split stance** (do not bring the other foot up, which would be a second footfall). Impacts made = 1.
 - Double step: start two steps out, step onto the mark before P and then onto P, freeze in split stance. Impacts made = 2.
 - Three to five trials of each per radius.
 
-### E. Walking a circle
+### E. Walking a circle (extension, after D)
 
 - Set the metronome to one cadence for the whole session (for example 100 beats per minute, one step per beat, 0.6 s between steps) and write it in Notes. The cadence gives an expected time between events to check the timestamps against.
 - The walker starts still with both feet on mark 1. Press Record, wait 3 s, then step mark to mark on the beat for exactly one lap counterclockwise, land on mark 1, bring the trailing foot alongside, and stand still 3 s before Stop.
@@ -207,7 +228,7 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 
 **Footwear is a condition.** Hard soles on tile give a sharp click above 100 Hz that det-v1 is built for. Socks and soft soles may leave only a low thump below 100 Hz, which det-v1 does not see. Run them as separate blocks with their own prefixes.
 
-### F. Mount and object comparison
+### F. Mount and object comparison (extension)
 
 - At 1 m with single ball drops, five trials for each mount or object (bare with weight, tape only, putty, loose, inside the vase base enclosure).
 - New prefix and new 60 s noise baseline after every change. Do not touch the board between trials within a mount.
@@ -287,6 +308,8 @@ One per session, filled in as you go.
 | Noise baselines: ID, false alarms per minute, causes | |
 | Invalid trials: ID and reason | |
 | Photo and video file names | |
+| Core check passed (Y/N, and what failed) | |
+| Day 1 or day 2 of this floor | |
 | Anomalies | |
 
 ## 15. Why these rules
@@ -294,6 +317,7 @@ One per session, filled in as you go.
 Each rule above traces to something that happened in the first sessions.
 
 - **10/14:** firm steps and stomps mixed in one condition made the 2 m results unreadable. One step style per block.
+- **10/15:** Vakakis asked for a few reliable measurements over many, repeated on different days. Core plan first, second-day repeat, extensions only after the core check.
 - **10/18:** socks or soft soles plus a different mount left the steps 35 to 40 dB weaker above 100 Hz than on 10/14, so det-v1 saw almost none. Change one thing at a time; footwear is its own condition.
 - **10/18:** a trial recorded before its noise baseline was measured against itself, and a 10 s baseline missed a source that started later. Baseline first, 60 s, renewed after changes.
 - **10/19:** the operator's click on Record was counted as an impact. Wait 3 s after Record; keep the laptop off the floor.
