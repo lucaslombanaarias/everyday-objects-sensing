@@ -66,3 +66,19 @@ def test_tags_are_saved_and_survive_reanalysis(day):
     assert (row["true_impact"], row["walk_in_out"]) == ("1", "1")
     with pytest.raises(ValueError):
         save_tags(path, {3: "footstep"})
+
+
+def test_detection_traces_match_the_events():
+    from test_impacts import FS
+
+    from everyday_sensing.impacts import DETECT, detection_traces, find_impacts, noise_baseline
+
+    x = signal_with([1.0, 2.0])
+    baseline = noise_baseline(signal_with(seed=1), FS)
+    traces = detection_traces(x, FS, baseline)
+    assert traces["highpassed"].size == x.size
+    assert traces["threshold_counts"] == pytest.approx(baseline[DETECT] * 10 ** (14 / 20))
+    for imp in find_impacts(x, FS, baseline)["impacts"]:
+        k = int(round(imp["t_s"] * 1000)) - 1
+        assert traces["rms_t_s"][k] == pytest.approx(imp["t_s"])
+        assert traces["level_db"][k] == pytest.approx(imp["levels_db"][DETECT])

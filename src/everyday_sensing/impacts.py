@@ -184,6 +184,31 @@ def find_impacts(
             "duration_s": np.asarray(x).size / fs}
 
 
+def detection_traces(x, fs, baseline: dict | None = None,
+                     detection: Detection = DETECTION) -> dict:
+    """What the detector sees, for plotting one trial: the high-passed signal (counts), its
+    RMS over the detection window (counts), that level in dB above the baseline, and the
+    threshold in counts. Same filter, window and time convention as find_impacts, so the
+    events it reports sit on the peaks of the RMS curve."""
+    x = np.asarray(x, dtype=np.float64)
+    env = BandEnvelope(fs, (detection.highpass_hz, None), window_s=detection.window_s,
+                       out_rate_hz=detection.rate_hz, order=detection.filter_order)
+    rms = env.process(x)
+    hp = signal.sosfilt(env.sos, x, zi=signal.sosfilt_zi(env.sos) * x[0])[0] if x.size else x
+    if baseline is None:
+        baseline = quiet_baseline({DETECT: (env.rate, rms)})
+    base = max(baseline[DETECT], np.finfo(np.float64).tiny)
+    return {
+        "t_s": np.arange(x.size) / fs,
+        "highpassed": hp,
+        "rms_t_s": (np.arange(rms.size) + 1) / env.rate,
+        "rms": rms,
+        "level_db": 20 * np.log10(np.maximum(rms, np.finfo(np.float64).tiny) / base),
+        "baseline": base,
+        "threshold_counts": base * 10 ** (detection.threshold_db / 20),
+    }
+
+
 # --------------------------------------------------------------------------- folders
 
 
@@ -395,9 +420,11 @@ def _versioned(rows: list[dict], detection: Detection) -> list[dict]:
 
 def event_rows(t: dict) -> list[dict]:
     """One row per detected event, for events_<trial>.csv. t_s is from the first sample of
-    the recording to the end of the detection window at the event's peak; timestamp is
-    the trial's start_time plus t_s (start_time is to the second, taken when recording
-    was started, in sidecars before meta_version 2, so those timestamps are +-1 s)."""
+    the recording and falls inside the 5 ms detection window at the event's peak (1 ms
+    after the window starts); timestamp is the trial's start_time plus t_s. Sidecars
+    before meta_version 2 store start_time to the second, taken when recording was
+    started, so their timestamps are good to about 1 s; later ones to the first sample,
+    within a few ms."""
     meta, result = t["meta"], t["result"]
     try:
         start = datetime.datetime.fromisoformat(meta["start_time"])
