@@ -23,7 +23,7 @@
   "baseline_noise_id": "fs_noise_01",
   "sensor_serial": null,
   "ambient_conditions": null,
-  "notes": "W1 stomping, Sensor inside vase base enclosure, 10 stomps at 2 m trial 1.",
+  "notes": "Danny stomping, Sensor inside vase base enclosure, 10 stomps at 2 m trial 1.",
   "fw_commit": "79444c2",
   "repo_commit": "05c36f32c473fb339c2e74ee5b8ccdf28f69fa1c",
   "repo_dirty": false,
@@ -56,6 +56,6 @@
     "scipy": "1.18.1",
     "pyserial": "3.5"
   },
-  "edit_note": "2026-10-19: notes changed 'W1 walking' to 'W1 stomping' on the operator's instruction; the .mat meta still has the original notes",
-  "published_note": "Published copy: the walker's name is replaced by the walker ID W1, and the .mat meta is rewritten to match this sidecar (notes, trial_id, files); the samples are unchanged"
+  "edit_note": "2026-10-19: notes changed 'Danny walking' to 'Danny stomping' on the operator's instruction; the .mat meta still has the original notes",
+  "published_note": "Published copy: the .mat meta is rewritten to match this sidecar (notes, trial_id, files); the samples are unchanged"
 }
