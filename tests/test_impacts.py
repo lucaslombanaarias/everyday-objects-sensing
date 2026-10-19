@@ -1,4 +1,6 @@
+import csv
 import datetime
+import json
 from pathlib import Path
 
 import numpy as np
@@ -14,13 +16,17 @@ from acquisition.record import (
 )
 from everyday_sensing.impacts import (
     DETECT,
+    DETECTION,
     REPORTED,
     THRESHOLD_DB,
+    analysis_folder,
     analyze_folder,
+    detection_for,
     find_impacts,
     noise_baseline,
     summarize,
     trial_rows,
+    write_outputs,
 )
 
 FS = 48000.0
@@ -204,3 +210,36 @@ def test_impacts_flag_recorded_and_rejected_for_noise():
     with pytest.raises(SystemExit):
         parse_args(["--port", "COM3", "--trial-id", "t", "--duration", "1", "--noise-only",
                     "--impacts", "5"])
+
+
+def test_detection_criterion_is_frozen_as_det_v1():
+    d = DETECTION.as_dict()
+    assert d["version"] == "det-v1"
+    assert (d["highpass_hz"], d["filter_order"], d["window_s"], d["rate_hz"],
+            d["threshold_db"], d["min_gap_s"]) == (100.0, 4, 0.005, 1000.0, 14.0, 0.25)
+    assert "5 ms detection window" in d["criterion"]
+    assert detection_for(14.0) is DETECTION
+    assert detection_for(16.0).version == "det-v1 (modified: threshold 16 dB)"
+
+
+def test_outputs_carry_the_criterion_and_stay_out_of_raw(tmp_path):
+    raw = tmp_path / "raw"
+    save(raw, "fs_noise_01", signal_with(seed=1), 0, ["--noise-only"])
+    save(raw, "fs_1m_01", signal_with([1.0, 2.0]), 1,
+         ["--distance-m", "1", "--excitation-type", "walking", "--impacts", "2"])
+    folder = raw / "2026-10-14"
+    before = sorted(p.name for p in folder.iterdir())
+    out = write_outputs(analyze_folder(folder), analysis_folder(folder))
+    assert out == tmp_path / "analysis" / "2026-10-14"
+    assert sorted(p.name for p in folder.iterdir()) == before
+    for name in ("impacts_trials.csv", "impacts_summary.csv"):
+        with (out / name).open(encoding="utf-8") as f:
+            rows = list(csv.DictReader(f))
+        assert rows and all(r["detection_version"] == "det-v1" for r in rows)
+        assert json.loads(rows[0]["detection_config"])["window_s"] == 0.005
+        assert any(k.startswith("feature 100-500 Hz 50 ms (not detection)") for k in rows[0])
+    record = json.loads((out / "fs_1m_01.analysis.json").read_text(encoding="utf-8"))
+    assert record["detection"]["version"] == "det-v1"
+    assert (record["impacts_made"], record["impacts_found"], record["difference"]) == (2, 2, 0)
+    assert analysis_folder(folder, detection_for(16.0), "fs_noise_01") == (
+        out / "threshold_16dB_baseline_fs_noise_01")

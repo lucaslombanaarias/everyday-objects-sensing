@@ -1,25 +1,31 @@
 """Find impacts (footsteps, stomps, drops) in recorded trials and summarize them by distance.
 
 Run as ``python -m everyday_sensing.impacts data/raw/<date>`` to print one row per trial
-and one per distance, and write impacts_trials.csv and impacts_summary.csv into that
-folder. The PCM dashboard (tools/dashboard/vpu_pcm_dashboard.py) runs the same analysis
-after every recording.
+and one per distance. The outputs go to data/analysis/<date>/ (see analysis_folder), never
+into data/raw. The PCM dashboard (tools/dashboard/vpu_pcm_dashboard.py) runs the same
+analysis after every recording.
 
-Detection: the 5 ms RMS of the signal above 100 Hz, in dB above a noise baseline. An
-impact is a peak of it that reaches THRESHOLD_DB and is at least MIN_GAP_S after the
-previous one. Footsteps on the tile floor arrive as clicks a few ms long; a 50 ms window
-(used before 2026-10-14 23:10) averaged most of them away at 2 m.
+Detection criterion (DETECTION, version det-v1): an impact is a local maximum of the RMS
+over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth,
+causal), evaluated 1000 times per second, that is at least 14 dB above the noise baseline.
+Of peaks closer together than 0.25 s only the highest is kept. Footsteps on the tile floor
+arrive as clicks a few ms long; a 50 ms window (used before 2026-10-14 23:10) averaged most
+of them away at 2 m.
+
+The baseline is the median detection level of the most recent noise-only trial recorded at
+or before the trial in the same folder, skipping its first 1 s (any noise-only trial if none
+precedes it, else the quietest 2 s of the trial itself); another noise-only trial can be
+chosen instead.
 
 Each impact is also reported in BANDS, from the 50 ms RMS (as in the stomp and first
-footstep checks), so levels stay comparable with those numbers.
-
-The baseline is the median envelope of the most recent noise-only trial recorded at or
-before the trial in the same folder (any noise-only trial if none precedes it, else the
-quietest 2 s of the trial itself); another noise-only trial can be chosen instead.
+footstep checks), so levels stay comparable with those numbers. These are features only:
+they are not used for detection.
 """
 
 import argparse
 import csv
+import dataclasses
+import datetime
 import json
 import math
 from pathlib import Path
@@ -30,36 +36,88 @@ from scipy import signal
 
 from everyday_sensing.events import BandEnvelope
 
+
+@dataclasses.dataclass(frozen=True)
+class Detection:
+    """The detection criterion. Any change to it is a new version."""
+
+    version: str = "det-v1"
+    highpass_hz: float = 100.0
+    filter_order: int = 4
+    filter: str = "Butterworth high-pass, causal, started settled at the first sample"
+    window_s: float = 0.005
+    """Detection window: the RMS is taken over this many seconds."""
+    rate_hz: float = 1000.0
+    """How often the detection level is evaluated (one RMS value per 1 ms)."""
+    threshold_db: float = 14.0
+    """Set from the trials of 2026-10-14: at 14 dB the detector fired 1.3 to 4.1 times per
+    minute on the three noise-only recordings, and found 7 of 9 firm steps in fs_2m_01 (16
+    dB: 3 of 9) and 9 of 9 stomping steps in fs_2m_03 and fs_2m_04."""
+    min_gap_s: float = 0.25
+    """Of peaks closer than this only the highest is kept; the 2 m steps on 2026-10-14 were
+    0.5 s apart."""
+    baseline_skip_s: float = 1.0
+    """Start of a noise-only recording left out of its baseline (filter start-up)."""
+    quiet_window_s: float = 2.0
+    """Without a noise-only trial, the baseline is the quietest stretch this long."""
+
+    def describe(self) -> str:
+        return (
+            f"{self.version}: local maxima of the RMS over a {self.window_s * 1000:g} ms "
+            f"detection window of the signal high-passed at {self.highpass_hz:g} Hz "
+            f"({self.filter_order}th-order {self.filter}), evaluated {self.rate_hz:g} times "
+            f"per second, at least {self.threshold_db:g} dB above the noise baseline; of "
+            f"peaks closer than {self.min_gap_s:g} s only the highest is kept. Baseline: "
+            f"median detection level of the latest noise-only trial at or before the trial "
+            f"(any noise-only trial if none precedes it), skipping its first "
+            f"{self.baseline_skip_s:g} s; else the quietest {self.quiet_window_s:g} s of "
+            f"the trial."
+        )
+
+    def as_dict(self) -> dict:
+        return {**dataclasses.asdict(self), "criterion": self.describe()}
+
+
+DETECTION = Detection()
+"""det-v1, the frozen criterion. All default outputs use it."""
+
+
+def detection_for(threshold_db: float | None = None) -> Detection:
+    """DETECTION, or a copy with another threshold whose version says it was modified."""
+    if threshold_db is None or threshold_db == DETECTION.threshold_db:
+        return DETECTION
+    return dataclasses.replace(
+        DETECTION, threshold_db=threshold_db,
+        version=f"{DETECTION.version} (modified: threshold {threshold_db:g} dB)")
+
+
 DETECT = "above 100 Hz (5 ms)"
-DETECT_BAND = (100.0, None)
-DETECT_WINDOW_S = 0.005
-DETECT_RATE_HZ = 1000.0
+DETECT_BAND = (DETECTION.highpass_hz, None)
+DETECT_WINDOW_S = DETECTION.window_s
+DETECT_RATE_HZ = DETECTION.rate_hz
 BANDS = {"100-500 Hz": (100.0, 500.0), "500-2000 Hz": (500.0, 2000.0), "2-8 kHz": (2000.0, 8000.0)}
+"""50 ms band levels reported per impact as features; not used for detection."""
 BAND_WINDOW_S = 0.05
 BAND_RATE_HZ = 200.0
 REPORTED = (DETECT, *BANDS)
 """Levels reported per impact: the detection level first, then the 50 ms band levels."""
-THRESHOLD_DB = 14.0
-"""Set from the trials of 2026-10-14: at 14 dB the detector fired 1.3 to 4.1 times per
-minute on the three noise-only recordings, and found 7 of 9 firm steps in fs_2m_01 (16 dB:
-3 of 9) and 9 of 9 stomping steps in fs_2m_03 and fs_2m_04."""
-MIN_GAP_S = 0.25
-"""Shortest time between two impacts; the 2 m steps on 2026-10-14 were 0.5 s apart."""
+THRESHOLD_DB = DETECTION.threshold_db
+MIN_GAP_S = DETECTION.min_gap_s
 PEAK_WINDOW_S = 0.05
 """Half-width of the window in which each band's level is read around a detected peak."""
-QUIET_WINDOW_S = 2.0
-SKIP_S = 1.0
+QUIET_WINDOW_S = DETECTION.quiet_window_s
+SKIP_S = DETECTION.baseline_skip_s
 """Start of a recording left out of its noise baseline (filter start-up)."""
 
 
 def envelopes(x, fs) -> dict:
     """{name: (rate, RMS envelope in counts)} for the detection level and each band."""
     x = np.asarray(x, dtype=np.float64)
-    specs = {DETECT: (DETECT_BAND, DETECT_WINDOW_S, DETECT_RATE_HZ)}
-    specs.update({name: (band, BAND_WINDOW_S, BAND_RATE_HZ) for name, band in BANDS.items()})
+    specs = {DETECT: (DETECT_BAND, DETECT_WINDOW_S, DETECT_RATE_HZ, DETECTION.filter_order)}
+    specs.update({name: (band, BAND_WINDOW_S, BAND_RATE_HZ, 4) for name, band in BANDS.items()})
     out = {}
-    for name, (band, window, rate) in specs.items():
-        env = BandEnvelope(fs, band, window_s=window, out_rate_hz=rate)
+    for name, (band, window, rate, order) in specs.items():
+        env = BandEnvelope(fs, band, window_s=window, out_rate_hz=rate, order=order)
         out[name] = (env.rate, env.process(x))
     return out
 
@@ -279,6 +337,80 @@ def write_csv(path: Path, rows: list[dict]) -> None:
         writer.writerows(rows)
 
 
+# --------------------------------------------------------------------------- outputs
+
+
+def analysis_folder(folder, detection: Detection = DETECTION, baseline_trial=None) -> Path:
+    """Where the outputs for a folder of trials go: data/analysis/<date>/ for
+    data/raw/<date>/ (else an analysis/ folder inside it). Runs with a modified criterion
+    or a chosen baseline go to a subfolder named after the change, so they never
+    overwrite the det-v1 outputs or the tags in them."""
+    folder = Path(folder)
+    if folder.parent.name == "raw":
+        out = folder.parent.parent / "analysis" / folder.name
+    else:
+        out = folder / "analysis"
+    variant = []
+    if detection != DETECTION:
+        variant.append(f"threshold_{detection.threshold_db:g}dB")
+    if baseline_trial:
+        variant.append(f"baseline_{baseline_trial}")
+    return out / "_".join(variant) if variant else out
+
+
+def _label(key: str) -> str:
+    """CSV column name: the 50 ms band levels are marked as features."""
+    for band in BANDS:
+        if key.startswith(band + " "):
+            return f"feature {band} 50 ms (not detection){key[len(band):]}"
+    if key.startswith(DETECT + " "):
+        return f"detection {DETECT}{key[len(DETECT):]}"
+    return key
+
+
+def _versioned(rows: list[dict], detection: Detection) -> list[dict]:
+    config = json.dumps(dataclasses.asdict(detection), separators=(",", ":"))
+    return [{**{_label(k): v for k, v in r.items()},
+             "detection_version": detection.version, "detection_config": config}
+            for r in rows]
+
+
+def trial_analysis(t: dict, detection: Detection = DETECTION) -> dict:
+    """The per-trial analysis record written next to the folder outputs."""
+    meta, result = t["meta"], t["result"]
+    out = {
+        "trial_id": meta["trial_id"],
+        "analyzed_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+        "detection": detection.as_dict(),
+    }
+    if result is None:
+        out["noise_baseline_counts"] = t["noise_baseline"]
+        return out
+    made = meta.get("impacts_made")
+    found = len(result["impacts"])
+    out.update({
+        "baseline_source": result["baseline_source"],
+        "baseline_counts": result["baseline"],
+        "impacts_made": made,
+        "impacts_found": found,
+        "difference": None if made is None else found - made,
+    })
+    return out
+
+
+def write_outputs(trials: list[dict], out: Path, detection: Detection = DETECTION) -> Path:
+    """impacts_trials.csv, impacts_summary.csv and <trial>.analysis.json in out."""
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    write_csv(out / "impacts_trials.csv", _versioned(trial_rows(trials), detection))
+    write_csv(out / "impacts_summary.csv", _versioned(summarize(trials), detection))
+    for t in trials:
+        record = trial_analysis(t, detection)
+        (out / f"{t['meta']['trial_id']}.analysis.json").write_text(
+            json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    return out
+
+
 def _fmt(v) -> str:
     if v is None or (isinstance(v, float) and math.isnan(v)):
         return "-"
@@ -288,7 +420,9 @@ def _fmt(v) -> str:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("folder", type=Path, help="a data/raw/<date> folder")
-    parser.add_argument("--threshold-db", type=float, default=THRESHOLD_DB)
+    parser.add_argument("--threshold-db", type=float, default=THRESHOLD_DB,
+                        help="change the det-v1 threshold; the outputs then go to a "
+                             "subfolder and are labeled as modified")
     parser.add_argument("--baseline", metavar="TRIAL_ID",
                         help="noise-only trial to measure all trials against "
                              "(default: the latest one before each trial)")
@@ -322,9 +456,10 @@ def main(argv: list[str] | None = None) -> None:
             f"{r['excitation']:<10}  {_fmt(r['distance_m']):>8}  {r['trials']:>6}  "
             f"{r['impacts_found']:>5}  {_fmt(r['impacts_made']):>4}  {cells}"
         )
-    write_csv(args.folder / "impacts_trials.csv", trial_rows(trials))
-    write_csv(args.folder / "impacts_summary.csv", summary)
-    print(f"\nwrote {args.folder / 'impacts_trials.csv'} and {args.folder / 'impacts_summary.csv'}")
+    detection = detection_for(args.threshold_db)
+    out = write_outputs(trials, analysis_folder(args.folder, detection, args.baseline), detection)
+    print(f"\ndetection {detection.describe()}")
+    print(f"wrote impacts_trials.csv, impacts_summary.csv and <trial>.analysis.json to {out}")
 
 
 if __name__ == "__main__":

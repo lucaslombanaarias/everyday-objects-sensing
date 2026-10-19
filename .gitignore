@@ -230,3 +230,6 @@ recordings/
 !results/**/*.png
 !data/footsteps/**/*.png
 data/vpu_tcp_*.csv
+
+# Analysis outputs (events, tags, per-trial analysis), derived from data/raw
+data/analysis/
