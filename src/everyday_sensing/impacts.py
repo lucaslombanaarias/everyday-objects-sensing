@@ -262,7 +262,10 @@ def analyze_folder(
 ):
     """Analyze every trial in folder. Returns one dict per trial, oldest first: "meta" (the
     sidecar) and either "result" (find_impacts output) or, for noise-only trials,
-    "noise_baseline" (median envelope per band) with "result" None.
+    "noise_baseline" (median envelope per band) and "false_alarms" (find_impacts on the
+    trial against its own baseline: every event in it is a false alarm) with "result"
+    None. det-v1 measures a trial against the latest noise-only trial at or before it,
+    which for a noise-only trial is itself.
 
     baseline_trial names the noise-only trial to measure every trial against; None picks,
     per trial, the latest noise-only trial recorded before it. cache keeps results keyed
@@ -275,14 +278,19 @@ def analyze_folder(
     for path in paths:
         meta = load_meta(path)
         if is_noise(meta):
-            key = ("noise", str(path), path.stat().st_mtime)
+            key = ("noise", str(path), path.stat().st_mtime, threshold_db)
             if key not in cache:
                 loaded = _try_load(path)
                 if loaded is None:
                     continue
-                cache[key] = noise_baseline(loaded[1], loaded[2])
-            noises.append((_when(meta), meta["trial_id"], cache[key]))
-            trials.append({"meta": meta, "noise_baseline": cache[key], "result": None})
+                base = noise_baseline(loaded[1], loaded[2])
+                check = find_impacts(loaded[1], loaded[2], base, threshold_db)
+                check["baseline_source"] = meta["trial_id"]
+                cache[key] = (base, check)
+            base, check = cache[key]
+            noises.append((_when(meta), meta["trial_id"], base))
+            trials.append({"meta": meta, "noise_baseline": base, "false_alarms": check,
+                           "result": None})
     chosen = None
     if baseline_trial is not None:
         chosen = next((n for n in noises if n[1] == baseline_trial), None)
@@ -418,6 +426,11 @@ def _versioned(rows: list[dict], detection: Detection) -> list[dict]:
             for r in rows]
 
 
+def detections(t: dict) -> dict:
+    """find_impacts output for a trial: its impacts, or a noise-only trial's false alarms."""
+    return t["false_alarms"] if t["result"] is None else t["result"]
+
+
 def event_rows(t: dict) -> list[dict]:
     """One row per detected event, for events_<trial>.csv. t_s is from the first sample of
     the recording and falls inside the 5 ms detection window at the event's peak (1 ms
@@ -425,7 +438,7 @@ def event_rows(t: dict) -> list[dict]:
     before meta_version 2 store start_time to the second, taken when recording was
     started, so their timestamps are good to about 1 s; later ones to the first sample,
     within a few ms."""
-    meta, result = t["meta"], t["result"]
+    meta, result = t["meta"], detections(t)
     try:
         start = datetime.datetime.fromisoformat(meta["start_time"])
     except (KeyError, TypeError, ValueError):
@@ -484,10 +497,14 @@ def save_tags(path: Path, tags: dict[int, str]) -> list[dict]:
 
 
 def count_row(t: dict, events: list[dict]) -> dict:
-    """Made against found for one trial, with the edge events and the review tags."""
-    meta, result = t["meta"], t["result"]
-    made, found = meta.get("impacts_made"), len(result["impacts"])
-    recorded = meta.get("baseline_noise_id")
+    """Made against found for one trial, with the edge events and the review tags. For a
+    noise-only trial nothing was made, so every event found is a false alarm, and
+    false_alarms_per_min is the rate over the whole recording."""
+    meta, result = t["meta"], detections(t)
+    noise = t["result"] is None
+    made, found = (0 if noise else meta.get("impacts_made")), len(result["impacts"])
+    recorded = None if noise else meta.get("baseline_noise_id")
+    minutes = result["duration_s"] / 60
     return {
         "trial_id": meta["trial_id"],
         "excitation": meta["excitation"]["type"],
@@ -502,6 +519,8 @@ def count_row(t: dict, events: list[dict]) -> dict:
         "baseline_used": result["baseline_source"],
         "baseline_recorded": recorded,
         "baseline_mismatch": bool(recorded) and recorded != result["baseline_source"],
+        "duration_s": round(result["duration_s"], 3),
+        "false_alarms_per_min": round(found / minutes, 2) if noise and minutes else None,
     }
 
 
@@ -515,12 +534,11 @@ def trial_analysis(t: dict, detection: Detection = DETECTION, events=None) -> di
     }
     if result is None:
         out["noise_baseline_counts"] = t["noise_baseline"]
-        return out
     events = event_rows(t) if events is None else events
     out.update({
         **count_row(t, events),
-        "baseline_counts": result["baseline"],
-        "duration_s": result["duration_s"],
+        "baseline_counts": detections(t)["baseline"],
+        "duration_s": detections(t)["duration_s"],
         "edge_s": EDGE_S,
         "events": events,
     })
@@ -528,9 +546,9 @@ def trial_analysis(t: dict, detection: Detection = DETECTION, events=None) -> di
 
 
 def write_outputs(trials: list[dict], out: Path, detection: Detection = DETECTION) -> Path:
-    """impacts_trials.csv, impacts_summary.csv, impacts_counts.csv, and per trial
-    events_<trial>.csv (keeping any annotations already in it) and <trial>.analysis.json,
-    in out."""
+    """impacts_trials.csv, impacts_summary.csv, impacts_counts.csv (noise-only trials
+    included, with their false alarms), and per trial events_<trial>.csv (keeping any
+    annotations already in it) and <trial>.analysis.json, in out."""
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     write_csv(out / "impacts_trials.csv", _versioned(trial_rows(trials), detection))
@@ -538,10 +556,8 @@ def write_outputs(trials: list[dict], out: Path, detection: Detection = DETECTIO
     counts = []
     for t in trials:
         trial_id = t["meta"]["trial_id"]
-        events = None
-        if t["result"] is not None:
-            events = write_events(out / f"events_{trial_id}.csv", event_rows(t))
-            counts.append(count_row(t, events))
+        events = write_events(out / f"events_{trial_id}.csv", event_rows(t))
+        counts.append(count_row(t, events))
         record = trial_analysis(t, detection, events)
         (out / f"{trial_id}.analysis.json").write_text(
             json.dumps(record, indent=2) + "\n", encoding="utf-8")
@@ -571,11 +587,13 @@ def main(argv: list[str] | None = None) -> None:
         parser.error(str(e))
     for t in trials:
         meta = t["meta"]
-        if t["result"] is None:
-            levels = ", ".join(f"{b} {v:.2f}" for b, v in t["noise_baseline"].items())
-            print(f"{meta['trial_id']}: noise only, baseline (counts) {levels}")
-            continue
         row = count_row(t, event_rows(t))
+        if t["result"] is None:
+            print(f"{meta['trial_id']}: noise only, {row['impacts_found']} false alarms in "
+                  f"{row['duration_s']:.0f} s ({row['false_alarms_per_min']:.1f} per minute)"
+                  + (f", {row['edge_events']} at the edges" if row["edge_events"] else "")
+                  + f", baseline {t['noise_baseline'][DETECT]:.2f} counts")
+            continue
         print(
             f"{meta['trial_id']}: {meta.get('distance_m')} m, {row['impacts_found']} found"
             + ("" if row["impacts_made"] is None else

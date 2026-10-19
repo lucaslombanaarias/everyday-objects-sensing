@@ -1,6 +1,7 @@
 import csv
 import json
 
+import numpy as np
 import pytest
 from test_impacts import save, signal_with
 
@@ -12,6 +13,11 @@ from everyday_sensing.impacts import (
     save_tags,
     write_outputs,
 )
+
+
+def counts(out):
+    with (out / "impacts_counts.csv").open(encoding="utf-8") as f:
+        return {r["trial_id"]: r for r in csv.DictReader(f)}
 
 
 @pytest.fixture
@@ -43,8 +49,7 @@ def test_events_csv_columns_times_and_edge_flags(day):
 
 def test_counts_reconcile_made_and_found(day):
     out = write_outputs(analyze_folder(day), analysis_folder(day))
-    with (out / "impacts_counts.csv").open(encoding="utf-8") as f:
-        (row,) = list(csv.DictReader(f))
+    row = counts(out)["fs_1m_01"]
     assert (row["impacts_made"], row["impacts_found"], row["difference"]) == ("2", "3", "1")
     assert (row["edge_events"], row["unreviewed"], row["mount"]) == ("2", "3", "tape")
     assert row["detection_version"] == "det-v1"
@@ -61,8 +66,7 @@ def test_tags_are_saved_and_survive_reanalysis(day):
     write_outputs(analyze_folder(day), out)
     assert [r["annotation"] for r in read_events(path)] == [
         "walk_in_out", "true_impact", "unreviewed"]
-    with (out / "impacts_counts.csv").open(encoding="utf-8") as f:
-        (row,) = list(csv.DictReader(f))
+    row = counts(out)["fs_1m_01"]
     assert (row["true_impact"], row["walk_in_out"]) == ("1", "1")
     with pytest.raises(ValueError):
         save_tags(path, {3: "footstep"})
@@ -82,3 +86,29 @@ def test_detection_traces_match_the_events():
         k = int(round(imp["t_s"] * 1000)) - 1
         assert traces["rms_t_s"][k] == pytest.approx(imp["t_s"])
         assert traces["level_db"][k] == pytest.approx(imp["levels_db"][DETECT])
+
+
+def test_noise_only_trials_report_false_alarms(tmp_path):
+    raw = tmp_path / "raw"
+    # 60 s of noise with two step-like events, at 20 s and 40 s. The helper's exp() overflows
+    # before each event on long signals; those samples are masked out.
+    with np.errstate(over="ignore", invalid="ignore"):
+        noisy = signal_with([20.0, 40.0], duration_s=60.0, seed=1)
+    save(raw, "fs_noise_01", noisy, 0, ["--noise-only", "--mount-method", "preloaded"])
+    save(raw, "fs_noise_02", signal_with(duration_s=30.0, seed=2), 1,
+         ["--noise-only", "--mount-method", "preloaded"])
+    folder = raw / "2026-10-14"
+    trials = analyze_folder(folder)
+    assert all(t["result"] is None for t in trials)
+    out = write_outputs(trials, analysis_folder(folder))
+    rows = counts(out)
+    first, quiet = rows["fs_noise_01"], rows["fs_noise_02"]
+    assert (first["impacts_made"], first["impacts_found"], first["difference"]) == ("0", "2", "2")
+    assert first["false_alarms_per_min"] == "2.0"
+    assert first["baseline_used"] == "fs_noise_01"
+    assert (quiet["impacts_found"], quiet["false_alarms_per_min"]) == ("0", "0.0")
+    events = read_events(out / "events_fs_noise_01.csv")
+    assert [round(float(e["t_s"])) for e in events] == [20, 40]
+    record = json.loads((out / "fs_noise_01.analysis.json").read_text(encoding="utf-8"))
+    assert record["false_alarms_per_min"] == 2.0
+    assert record["noise_baseline_counts"] == trials[0]["noise_baseline"]

@@ -79,6 +79,9 @@ COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb
 TRIAL_TYPES = [*EXCITATIONS, "noise only"]
 AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 TRIAL_PLOT_H = 260
+FALSE_ALARMS_HIGH = 4.0
+"""False alarms per minute on a noise-only trial shown in orange. With det-v1 the 10/14
+noise trials give 1.3 to 2.0 per minute (1.3 to 4.0 against their quietest 2 s instead)."""
 
 
 
@@ -442,7 +445,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         baseline_row = QtWidgets.QHBoxLayout()
         baseline_row.addWidget(QtWidgets.QLabel("Baseline"))
         baseline_row.addWidget(self.baseline_box, 1)
-        self.noise_table = self._table(["noise trial", "time", "detection level (counts)"])
+        self.noise_table = self._table(["noise trial", "time", "level (counts)",
+                                        "false alarms", "per min"])
         self.trial_box = QtWidgets.QComboBox()
         self.trial_box.currentIndexChanged.connect(lambda _: self._pick_trial())
         trash = QtWidgets.QPushButton("Trash...")
@@ -454,7 +458,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.noise_table.setMaximumHeight(120)
         criterion = cap(impacts.DETECTION.describe())
         results = page([criterion, baseline_row,
-                        cap("Noise-only trials: median RMS over the detection window"),
+                        cap("Noise-only trials: median RMS over the detection window, and "
+                            "det-v1 events in them (false alarms)"),
                         self.noise_table, trial_row, self.result_lbl, self.trial_plot,
                         self.more_box, self.level_plot, self.spec_plot,
                         cap("Events: dB above the noise baseline; edge = within "
@@ -708,9 +713,16 @@ class PcmDashboard(QtWidgets.QMainWindow):
         except OSError as e:  # e.g. an events CSV open in Excel
             note = f"; COULD NOT WRITE THE OUTPUTS: {e}"
         noises = [t for t in trials if t["result"] is None]
-        self._fill(self.noise_table, [
-            [t["meta"]["trial_id"], t["meta"].get("start_time", "")[11:19],
-             f"{t['noise_baseline'][impacts.DETECT]:.2f}"] for t in noises])
+        rows = []
+        for t in noises:
+            row = impacts.count_row(t, impacts.event_rows(t))
+            rows.append([t["meta"]["trial_id"], t["meta"].get("start_time", "")[11:19],
+                         f"{t['noise_baseline'][impacts.DETECT]:.2f}", row["impacts_found"],
+                         f"{row['false_alarms_per_min']:.1f}"])
+        self._fill(self.noise_table, rows)
+        for r, row in enumerate(rows):
+            if float(row[4]) > FALSE_ALARMS_HIGH:
+                self.noise_table.item(r, 4).setForeground(QtGui.QColor(COLORS["edge"]))
         self.folder_lbl.setText(f"{folder}, {len(trials)} trials, {impacts.DETECTION.version}, "
                                 f"baseline {chosen or 'automatic'}; outputs in "
                                 f"{self.out_folder}{note}")
@@ -795,17 +807,27 @@ class PcmDashboard(QtWidgets.QMainWindow):
     def _show_trial(self, t):
         meta = t["meta"]
         self.shown_trial = t
-        if t["result"] is None:
-            self.result_lbl.setText(f"{meta['trial_id']}: noise only. It is the baseline for the "
-                                    f"trials recorded after it.")
-            self.shown_events = []
-            self._fill_events([])
-            self._draw_trial()
-            return
         events = (impacts.read_events(self.out_folder / f"events_{meta['trial_id']}.csv")
                   or impacts.event_rows(t))
         row = impacts.count_row(t, events)
         orange = "<span style='color:#ffa726'>{}</span>"
+        tagged = "" if row["unreviewed"] == row["impacts_found"] else ", tagged: " + ", ".join(
+            f"{row[tag]} {tag}" for tag in impacts.TAGS if row[tag])
+        if t["result"] is None:
+            rate = f"{row['false_alarms_per_min']:.1f} per minute"
+            if row["false_alarms_per_min"] > FALSE_ALARMS_HIGH:
+                rate = orange.format(rate)
+            self.result_lbl.setText(
+                f"<b>{meta['trial_id']}</b>: noise only, mount {row['mount'] or '-'}<br>"
+                f"<b>{row['impacts_found']} false alarms</b> in {row['duration_s']:.0f} s "
+                f"({rate})"
+                + (f", {row['edge_events']} at the edges" if row["edge_events"] else "")
+                + f"{tagged}<br>baseline: itself ({t['noise_baseline'][impacts.DETECT]:.2f} "
+                f"counts); it is the baseline for the trials recorded after it.")
+            self.shown_events = events
+            self._fill_events(events)
+            self._draw_trial()
+            return
         if row["difference"] is None:
             counts = f"<b>{row['impacts_found']} found</b>, impacts made not recorded"
         else:
@@ -814,9 +836,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
                       + (diff if row["difference"] == 0 else orange.format(diff)))
         if row["edge_events"]:
             counts += f", {row['edge_events']} at the edges"
-        if row["unreviewed"] < row["impacts_found"]:
-            counts += ", tagged: " + ", ".join(
-                f"{row[tag]} {tag}" for tag in impacts.TAGS if row[tag])
+        counts += tagged
         baseline = row["baseline_used"] + (
             orange.format(f" (the trial records {row['baseline_recorded']})")
             if row["baseline_mismatch"] else "")

@@ -77,8 +77,8 @@ An event is a local maximum of the RMS over a 5 ms detection window of the signa
 
 The analysis never writes into `data/raw/`. It writes to `data/analysis/<date>/` (not committed):
 
-- `impacts_counts.csv`: one row per trial with impacts made, found, the difference, the number of edge events, and how many events carry each tag.
-- `events_<trial>.csv`: one row per event: `event`, `t_s` (seconds from the first sample; it falls 1 ms after the start of the 5 ms window at the peak), `timestamp` (start time plus `t_s`), `peak_db` (above the baseline), `flag` (`edge` if within 1.0 s of the start or end of the recording; flagged, never dropped), and `annotation` (`unreviewed` until tagged `true_impact`, `walk_in_out`, `other_noise` or `unknown`). Re-analysis keeps the tags of events at the same time.
+- `impacts_counts.csv`: one row per trial with impacts made, found, the difference, the number of edge events, and how many events carry each tag. Noise-only trials are included with 0 made: every event found in them is a false alarm (measured against the trial's own baseline, which is what det-v1 gives for a noise-only trial), and `false_alarms_per_min` is their rate. On the 10/14 noise trials this is 1.3 to 2.0 per minute.
+- `events_<trial>.csv`, for every trial including noise-only ones: one row per event: `event`, `t_s` (seconds from the first sample; it falls 1 ms after the start of the 5 ms window at the peak), `timestamp` (start time plus `t_s`), `peak_db` (above the baseline), `flag` (`edge` if within 1.0 s of the start or end of the recording; flagged, never dropped), and `annotation` (`unreviewed` until tagged `true_impact`, `walk_in_out`, `other_noise` or `unknown`). Re-analysis keeps the tags of events at the same time.
 - `<trial>.analysis.json`: the detection config and version, the baseline used, made against found, and the events.
 - `impacts_trials.csv` (one row per event with its feature levels) and `impacts_summary.csv` (per excitation and distance).
 
