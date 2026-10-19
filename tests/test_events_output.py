@@ -112,3 +112,23 @@ def test_noise_only_trials_report_false_alarms(tmp_path):
     record = json.loads((out / "fs_noise_01.analysis.json").read_text(encoding="utf-8"))
     assert record["false_alarms_per_min"] == 2.0
     assert record["noise_baseline_counts"] == trials[0]["noise_baseline"]
+
+
+def test_skipped_peaks_are_the_near_misses():
+    from test_impacts import FS
+
+    from everyday_sensing.impacts import (
+        detection_traces,
+        find_impacts,
+        noise_baseline,
+        skipped_peaks,
+    )
+
+    # Two clear steps (43 dB) and a weak one that peaks at about 13 dB, below the threshold.
+    x = signal_with([1.0, 3.0]) + signal_with([2.0], amplitude=9.0, seed=3) - signal_with(seed=3)
+    baseline = noise_baseline(signal_with(seed=1), FS)
+    events = [round(i["t_s"], 1) for i in find_impacts(x, FS, baseline)["impacts"]]
+    skipped = skipped_peaks(detection_traces(x, FS, baseline))
+    assert events == [1.0, 3.0]
+    assert [round(t, 1) for t, _ in skipped] == [2.0]
+    assert all(10 <= db < 14 for _, db in skipped)

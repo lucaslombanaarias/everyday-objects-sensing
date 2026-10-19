@@ -75,7 +75,9 @@ BANDS = {
     "2-8 kHz, 50 ms (resonance, feature)": ((2000.0, 8000.0), 0.05, 200.0),
 }
 COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb6a",
-          "edge": "#ffa726"}
+          "edge": "#ffa726", "skipped": "#b0b8c0"}
+WAVE_FAINT = (79, 195, 247, 55)
+"""The trial plot's waveform, drawn faint: the detector tests the RMS, not this."""
 TRIAL_TYPES = [*EXCITATIONS, "noise only"]
 DROPS = ("drop_stand", "ball_drop")
 """Excitations with a drop height and tip; walking has no single excitation point."""
@@ -845,6 +847,12 @@ class PcmDashboard(QtWidgets.QMainWindow):
         if row["edge_events"]:
             counts += f", {row['edge_events']} at the edges"
         counts += tagged
+        traces = self._traces(t)
+        skipped = [] if traces is None else impacts.skipped_peaks(traces[0])
+        if skipped:
+            counts += (f"<br>{len(skipped)} peak{'s' if len(skipped) > 1 else ''} below the "
+                       f"threshold (hollow): " + ", ".join(
+                           f"{when:.2f} s {db:.1f} dB" for when, db in skipped))
         baseline = row["baseline_used"] + (
             orange.format(f" (the trial records {row['baseline_recorded']})")
             if row["baseline_mismatch"] else "")
@@ -883,8 +891,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
 
     # ---- trial plot
     def _trial_plots(self):
-        wave = pg.PlotWidget(title="High-passed waveform, RMS over the detection window, "
-                                   "threshold, events")
+        wave = pg.PlotWidget(title="5 ms RMS (orange) and its threshold; waveform faint; "
+                                   "hollow = below threshold")
         wave.setLabel("bottom", "time from start", "s")
         wave.setLabel("left", "counts")
         wave.showGrid(x=True, y=True, alpha=0.2)
@@ -926,14 +934,18 @@ class PcmDashboard(QtWidgets.QMainWindow):
             return
         tr, x, fs = found
         thr_pen = pg.mkPen(COLORS["thr"], width=1.5, style=QtCore.Qt.PenStyle.DashLine)
-        for xs, ys, color in [(tr["t_s"], tr["highpassed"], COLORS["wave"]),
-                              (tr["rms_t_s"], tr["rms"], COLORS["env"])]:
-            curve = self.trial_plot.plot(xs, ys, pen=pg.mkPen(color, width=1))
+        # The detector compares the 5 ms RMS with the threshold, so the RMS is drawn bold and
+        # the waveform faint: a sharp peak in the waveform can cross the line while its RMS
+        # stays below it.
+        for xs, ys, pen in [(tr["t_s"], tr["highpassed"], pg.mkPen(WAVE_FAINT, width=1)),
+                            (tr["rms_t_s"], tr["rms"], pg.mkPen(COLORS["env"], width=2.5))]:
+            curve = self.trial_plot.plot(xs, ys, pen=pen)
             curve.setDownsampling(auto=True, method="peak")
             curve.setClipToView(True)
         self.trial_plot.addItem(pg.InfiniteLine(
             tr["threshold_counts"], angle=0, pen=thr_pen,
-            label=f"threshold {impacts.THRESHOLD_DB:g} dB", labelOpts={"color": COLORS["thr"]}))
+            label=f"threshold {impacts.THRESHOLD_DB:g} dB (5 ms RMS)",
+            labelOpts={"color": COLORS["thr"], "position": 0.08}))
         times = [float(e["t_s"]) for e in self.shown_events]
         dbs = [float(e["peak_db"]) for e in self.shown_events]
         brushes = [pg.mkBrush(COLORS["edge"] if e["flag"] == "edge" else COLORS["event"])
@@ -944,11 +956,23 @@ class PcmDashboard(QtWidgets.QMainWindow):
             label = pg.TextItem(str(e["event"]), color=COLORS["event"], anchor=(0.5, 1.2))
             label.setPos(when, peak)
             self.trial_plot.addItem(label)
+        # Skipped peaks: hollow, with their level, so a miss shows why it was missed.
+        skipped = impacts.skipped_peaks(tr)
+        hollow = dict(size=11, brush=None, pen=pg.mkPen(COLORS["skipped"], width=1.5))
+        sk_t = [when for when, _ in skipped]
+        sk_db = [db for _, db in skipped]
+        sk_counts = [tr["baseline"] * 10 ** (db / 20) for db in sk_db]
+        self.trial_plot.addItem(pg.ScatterPlotItem(sk_t, sk_counts, **hollow))
+        for when, db, peak in zip(sk_t, sk_db, sk_counts):
+            label = pg.TextItem(f"{db:.1f} dB", color=COLORS["skipped"], anchor=(0.5, 1.3))
+            label.setPos(when, peak)
+            self.trial_plot.addItem(label)
         if not more:
             return
-        self.level_plot.plot(tr["rms_t_s"], tr["level_db"], pen=pg.mkPen(COLORS["env"], width=1))
+        self.level_plot.plot(tr["rms_t_s"], tr["level_db"], pen=pg.mkPen(COLORS["env"], width=1.5))
         self.level_plot.addItem(pg.InfiniteLine(impacts.THRESHOLD_DB, angle=0, pen=thr_pen))
         self.level_plot.addItem(pg.ScatterPlotItem(times, dbs, size=9, brush=brushes, pen=None))
+        self.level_plot.addItem(pg.ScatterPlotItem(sk_t, sk_db, **hollow))
         if x.size >= SPEC_N:
             f, ts, sxx = signal.spectrogram(x - np.mean(x), fs, nperseg=SPEC_N,
                                             noverlap=SPEC_N // 2)

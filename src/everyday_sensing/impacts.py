@@ -184,6 +184,25 @@ def find_impacts(
             "duration_s": np.asarray(x).size / fs}
 
 
+SKIPPED_FLOOR_DB = 10.0
+"""Peaks of the detection level from here up to the threshold are shown as skipped
+(near misses), so a miss can be explained the way an extra event is tagged."""
+
+
+def skipped_peaks(traces: dict, floor_db: float = SKIPPED_FLOOR_DB,
+                  detection: Detection = DETECTION) -> list[tuple[float, float]]:
+    """(t_s, dB) of the detection level's peaks at least floor_db above the baseline but
+    below the threshold, kept min_gap_s apart as det-v1 keeps its events. These are not
+    detections; a peak that reached the threshold is an event instead. A skipped peak
+    within min_gap_s of an event is left out, since det-v1 merges it into that event."""
+    level, times = traces["level_db"], traces["rms_t_s"]
+    rate = detection.rate_hz
+    peaks, _ = signal.find_peaks(level, height=floor_db,
+                                 distance=max(1, int(detection.min_gap_s * rate)))
+    return [(float(times[p]), float(level[p])) for p in peaks
+            if level[p] < detection.threshold_db]
+
+
 def detection_traces(x, fs, baseline: dict | None = None,
                      detection: Detection = DETECTION) -> dict:
     """What the detector sees, for plotting one trial: the high-passed signal (counts), its
