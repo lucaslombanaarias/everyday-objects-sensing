@@ -203,6 +203,24 @@ def skipped_peaks(traces: dict, floor_db: float = SKIPPED_FLOOR_DB,
             if level[p] < detection.threshold_db]
 
 
+MERGED_SEPARATION_S = 0.15
+"""For display only: one impact's ringing lasts up to about 0.15 s (0.10 to 0.14 s seen on
+2026-10-19), so a peak of the detection level farther than this from a stronger one is a
+separate burst."""
+
+
+def merged_peaks(traces: dict, event_times: list[float],
+                 detection: Detection = DETECTION) -> list[tuple[float, float]]:
+    """(t_s, dB) of separate bursts that reached the threshold but are not events, because
+    a stronger event lies within min_gap_s (det-v1 keeps only the highest). Shown so that
+    every crossing of the threshold is accounted for; they do not change the detection."""
+    level, times = traces["level_db"], traces["rms_t_s"]
+    peaks, _ = signal.find_peaks(level, height=detection.threshold_db,
+                                 distance=max(1, int(MERGED_SEPARATION_S * detection.rate_hz)))
+    return [(float(times[p]), float(level[p])) for p in peaks
+            if all(abs(times[p] - t) > 0.01 for t in event_times)]
+
+
 def detection_traces(x, fs, baseline: dict | None = None,
                      detection: Detection = DETECTION) -> dict:
     """What the detector sees, for plotting one trial: the high-passed signal (counts), its

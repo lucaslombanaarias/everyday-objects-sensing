@@ -132,3 +132,24 @@ def test_skipped_peaks_are_the_near_misses():
     assert events == [1.0, 3.0]
     assert [round(t, 1) for t, _ in skipped] == [2.0]
     assert all(10 <= db < 14 for _, db in skipped)
+
+
+def test_merged_peaks_are_bursts_inside_the_min_gap():
+    from test_impacts import FS
+
+    from everyday_sensing.impacts import (
+        detection_traces,
+        find_impacts,
+        merged_peaks,
+        noise_baseline,
+    )
+
+    # A burst 0.18 s before a stronger step: above the threshold, but det-v1 keeps only the
+    # step, and the burst is shown as merged.
+    x = signal_with([1.0, 2.18]) + signal_with([2.0], amplitude=100.0, seed=3) - signal_with(seed=3)
+    baseline = noise_baseline(signal_with(seed=1), FS)
+    events = [i["t_s"] for i in find_impacts(x, FS, baseline)["impacts"]]
+    merged = merged_peaks(detection_traces(x, FS, baseline), events)
+    assert [round(t, 1) for t in events] == [1.0, 2.2]
+    assert [round(t, 1) for t, _ in merged] == [2.0]
+    assert all(db >= 14 for _, db in merged)

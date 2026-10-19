@@ -853,6 +853,12 @@ class PcmDashboard(QtWidgets.QMainWindow):
             counts += (f"<br>{len(skipped)} peak{'s' if len(skipped) > 1 else ''} below the "
                        f"threshold (hollow): " + ", ".join(
                            f"{when:.2f} s {db:.1f} dB" for when, db in skipped))
+        merged = [] if traces is None else impacts.merged_peaks(
+            traces[0], [float(e["t_s"]) for e in events])
+        if merged:
+            counts += (f"<br>{len(merged)} burst{'s' if len(merged) > 1 else ''} merged into a "
+                       f"stronger event within {impacts.MIN_GAP_S:g} s (hollow square): "
+                       + ", ".join(f"{when:.2f} s" for when, _ in merged))
         baseline = row["baseline_used"] + (
             orange.format(f" (the trial records {row['baseline_recorded']})")
             if row["baseline_mismatch"] else "")
@@ -967,12 +973,24 @@ class PcmDashboard(QtWidgets.QMainWindow):
             label = pg.TextItem(f"{db:.1f} dB", color=COLORS["skipped"], anchor=(0.5, 1.3))
             label.setPos(when, peak)
             self.trial_plot.addItem(label)
+        # Bursts above the threshold merged into a stronger event within the minimum gap.
+        merged = impacts.merged_peaks(tr, times)
+        mg_t = [when for when, _ in merged]
+        mg_db = [db for _, db in merged]
+        mg_counts = [tr["baseline"] * 10 ** (db / 20) for db in mg_db]
+        square = dict(hollow, symbol="s")
+        self.trial_plot.addItem(pg.ScatterPlotItem(mg_t, mg_counts, **square))
+        for when, peak in zip(mg_t, mg_counts):
+            label = pg.TextItem("merged", color=COLORS["skipped"], anchor=(0.5, 1.3))
+            label.setPos(when, peak)
+            self.trial_plot.addItem(label)
         if not more:
             return
         self.level_plot.plot(tr["rms_t_s"], tr["level_db"], pen=pg.mkPen(COLORS["env"], width=1.5))
         self.level_plot.addItem(pg.InfiniteLine(impacts.THRESHOLD_DB, angle=0, pen=thr_pen))
         self.level_plot.addItem(pg.ScatterPlotItem(times, dbs, size=9, brush=brushes, pen=None))
         self.level_plot.addItem(pg.ScatterPlotItem(sk_t, sk_db, **hollow))
+        self.level_plot.addItem(pg.ScatterPlotItem(mg_t, mg_db, **square))
         if x.size >= SPEC_N:
             f, ts, sxx = signal.spectrogram(x - np.mean(x), fs, nperseg=SPEC_N,
                                             noverlap=SPEC_N // 2)
