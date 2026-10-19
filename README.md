@@ -33,6 +33,8 @@ python scripts/plot_filter_figures.py
 
 ## Recording data
 
+For floor tests (drops, stomps, steps and walking at set distances, on different floors and mounts), follow the [floor test procedure](docs/testing/floor_procedure.md).
+
 Flash `firmware/vpu_pcm_stream` to the XIAO ESP32-C6 (see [its README](firmware/vpu_pcm_stream/README.md)), close the Arduino Serial Monitor and any dashboard, then record one trial per command from the repo root:
 
 ```
