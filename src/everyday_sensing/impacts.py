@@ -51,9 +51,13 @@ class Detection:
     rate_hz: float = 1000.0
     """How often the detection level is evaluated (one RMS value per 1 ms)."""
     threshold_db: float = 14.0
-    """Set from the trials of 2026-10-14: at 14 dB the detector fired 1.3 to 4.1 times per
-    minute on the three noise-only recordings, and found 7 of 9 firm steps in fs_2m_01 (16
-    dB: 3 of 9) and 9 of 9 stomping steps in fs_2m_03 and fs_2m_04."""
+    """Set from the trials of 2026-10-14. On the three noise-only recordings, 14 dB gave
+    1.3 to 4.1 false alarms per minute when each recording was measured against its own
+    quietest 2 s, with the rate taken over the recording after its first 1 s (fs_noise_01: 2
+    in 29 s). Measured as the outputs report it, against each noise trial's det-v1 baseline
+    (median 5 ms RMS, first 1 s skipped) and over the whole recording, the same recordings
+    give 1.3 to 2.0 per minute. At 14 dB the detector found 7 of 9 firm steps in fs_2m_01
+    (16 dB: 3 of 9) and 9 of 9 stomping steps in fs_2m_03 and fs_2m_04."""
     min_gap_s: float = 0.25
     """Of peaks closer than this only the highest is kept; the 2 m steps on 2026-10-14 were
     0.5 s apart."""

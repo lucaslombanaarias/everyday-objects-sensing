@@ -40,7 +40,7 @@ python tools/dashboard/vpu_pcm_dashboard.py --port SIM
 2. Set Excitation (`drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking`, `stomp`), Impacts made, Excitation point, Sensor radius (impact point to sensor center), Mount (`tape`, `putty_wax`, `loose`, `preloaded`), and if relevant Drop height and Tip, plus floor and operator once. The Trial ID fills itself in (`fs_1m_03`, numbered after the trials already saved that day); you can edit it.
 3. Press Record, make the impacts, press Stop.
 
-Record refuses to start without an excitation, impacts made (1 or more) and a mount, and says what is missing; nothing is recorded until the form is complete. Notes carry over from one trial to the next, so when they are unchanged from the last saved trial Record also stops once and outlines them in orange: edit them, or press Record again to keep them. Once a recording has started it is always saved at Stop, even if the form was changed meanwhile (the result line then says what is incomplete).
+Record refuses to start without an ID prefix, an excitation, impacts made (1 or more) and a mount, and says what is missing; nothing is recorded until the form is complete. Notes carry over from one trial to the next, so when they are unchanged from the last saved trial Record also stops once and outlines them in orange: edit them, or press Record again to keep them. Once a recording has started it is always saved at Stop, even if the form was changed meanwhile (the result line then says what is incomplete).
 
 Stop saves the same three files as `python -m acquisition.record` (CSV, JSON sidecar with checks, .mat) to `data/raw/<date>/`, runs the analysis on that day's folder, writes its outputs to `data/analysis/<date>/` and switches to the Results tab:
 

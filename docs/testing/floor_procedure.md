@@ -164,7 +164,7 @@ Use the port from the list. On another laptop, set up the repo's environment fir
 | Baseline noise | Fills itself with the newest noise trial. Leave it. |
 | Operator | Who runs the laptop. |
 | Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. When they are unchanged from the last saved trial, Record stops once and outlines Notes in orange; edit them, or press Record again to keep them. |
-| ID prefix | One per condition, see below. |
+| ID prefix | One per condition, see below. Required: it starts blank, and Record refuses until it is filled. |
 | Trial ID | Fills itself in. Do not type one. |
 
 ### Naming
@@ -187,7 +187,7 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 1. Set the prefix for the coming block, Excitation to noise only, and the Mount as it will be for the block.
 2. Everyone still and silent; phones face down and not on the floor.
 3. Record a full **60 s**.
-4. In the Results tab, read the noise table: **false alarms** and **per min**. These are det-v1 events in a recording where nothing happened. On 10/14 det-v1 gave 1.3 to 2.0 per minute. Above 3 per minute, find the source before continuing; the dashboard shows the rate in orange above 3.
+4. In the Results tab, read the noise table: **false alarms** and **per min**. These are det-v1 events in a recording where nothing happened. The rate shown is det-v1 events against the trial's own det-v1 baseline, over the whole recording; the three 10/14 noise trials give 1.3 to 2.0 per minute this way. (The 1.3 to 4.1 noted on 10/14 measured each trial against its quietest 2 s instead, over the recording after its first 1 s, so it does not compare with this limit.) Above 3 per minute, find the source before continuing; the dashboard shows the rate in orange above 3.
 5. Tag each false alarm with its likely cause (`other_noise` or `unknown`) and write the cause on the sheet.
 
 ## 9. Trial blocks
@@ -322,7 +322,7 @@ Each rule above traces to something that happened in the first sessions.
 - **10/18:** socks or soft soles plus a different mount left the steps 35 to 40 dB weaker above 100 Hz than on 10/14, so det-v1 saw almost none. Change one thing at a time; footwear is its own condition.
 - **10/18:** a trial recorded before its noise baseline was measured against itself, and a 10 s baseline missed a source that started later. Baseline first, 60 s, renewed after changes.
 - **10/19:** the operator's click on Record was counted as an impact. Wait 3 s after Record; keep the laptop off the floor.
-- **10/19:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes (Record now stops once on unchanged Notes) and set the prefix per condition.
+- **10/19:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes (Record now stops once on unchanged Notes) and set the prefix per condition (it now starts blank and is required).
 - **10/19:** a stomp whose waveform crossed the line was missed at 13.1 dB on the RMS. The threshold is on the RMS; the plot now shows near misses.
 - **10/19:** trials after midnight go to a new date folder. Record a new baseline after midnight.
 

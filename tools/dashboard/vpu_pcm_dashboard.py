@@ -84,9 +84,11 @@ DROPS = ("drop_stand", "ball_drop")
 AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 TRIAL_PLOT_H = 260
 FALSE_ALARMS_HIGH = 3.0
-"""False alarms per minute on a noise-only trial shown in orange. With det-v1 the 10/14
-noise trials give 1.3 to 2.0 per minute; the floor procedure (docs/testing/floor_procedure.md)
-stops a block above 3."""
+"""False alarms per minute on a noise-only trial shown in orange; the floor procedure
+(docs/testing/floor_procedure.md) stops a block above 3. The rate shown is det-v1 events
+against the trial's own det-v1 baseline, over the whole recording: 1.3 to 2.0 per minute on
+the 10/14 noise trials. The 1.3 to 4.1 noted on 10/14 measured each trial against its
+quietest 2 s instead, over the recording after its first 1 s."""
 
 
 
@@ -407,7 +409,9 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.operator_edit = QtWidgets.QLineEdit()
         fw = repo_state().get("fw_source_commit") or ""
         self.fw_edit = QtWidgets.QLineEdit(fw[:7], placeholderText="commit flashed on the board")
-        self.prefix_edit = QtWidgets.QLineEdit("fs")
+        # Blank and required, like Mount: a default prefix named the 10/19 stomps "fs"
+        # (footsteps).
+        self.prefix_edit = QtWidgets.QLineEdit(placeholderText="required, e.g. tile_bare_drop")
         self.notes_edit = QtWidgets.QLineEdit(placeholderText="e.g. walking circle, 5 steps on marks")
         # Notes carry over between trials, so Record stops once when they are unchanged.
         self.last_notes = None          # (notes, trial id) of the last saved trial
@@ -730,7 +734,9 @@ class PcmDashboard(QtWidgets.QMainWindow):
             args = parse_args(self._record_argv(self.trial_edit.text().strip() or "t", 1.0))
         except SystemExit:
             return ["the recorder rejected the form"]
-        return validate_meta({
+        problems = [] if self.prefix_edit.text().strip() else [
+            "ID prefix is required: one per condition, e.g. tile_bare_drop"]
+        return problems + validate_meta({
             "noise_only": args.noise_only,
             "sensor_mount": {"method": args.mount_method},
             "excitation": {"type": args.excitation_type},
