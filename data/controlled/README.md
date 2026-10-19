@@ -6,6 +6,31 @@ Floor-vibration trials with a known number of impacts, recorded with `firmware/v
 - `analysis/<date>/`: `impacts_counts.csv` (made, found, difference, edge events and tags per trial), `events_<trial>.csv` (every detected event, with its tag), `<trial>.analysis.json`, `impacts_trials.csv` and `impacts_summary.csv`. Regenerate with `python -m everyday_sensing.impacts data/controlled/raw/<date>`.
 - `figures/<date>/`: one plot per trial and `summary_found_vs_made.png`, from `python scripts/plot_trials.py data/controlled/raw/<date>`.
 
+## 2026-10-14: noise-only baselines
+
+The three noise-only recordings from the first footstep session (tile, sensor taped down), published so the false-alarm rates quoted for det-v1 can be checked. Nothing was done during them, so every event is a false alarm. The two published rates measure them differently:
+
+| Trial | Length | Against its det-v1 baseline, over the whole recording | Against its quietest 2 s, over the recording after its first 1 s |
+|---|---|---|---|
+| `fs_noise_01` | 30.0 s | 1 event, 2.0 per minute | 2 events, 4.1 per minute |
+| `fs_noise_02` | 66.6 s | 2 events, 1.8 per minute | 2 events, 1.8 per minute |
+| `fs_noise_03` | 47.0 s | 1 event, 1.3 per minute | 1 event, 1.3 per minute |
+
+The first column (1.3 to 2.0) is what the dashboard, `impacts_counts.csv` and the floor procedure's 3 per minute limit use: the baseline is the median 5 ms RMS of the trial, skipping its first 1 s, which is what det-v1 gives a noise-only trial. The second (1.3 to 4.1) is how the rate was first measured on 10/14, and is the figure in the `Detection.threshold_db` docstring and `firmware/vpu_pcm_stream/README.md`. To reproduce both, in Python from the repo root:
+
+```python
+from pathlib import Path
+from everyday_sensing import impacts as I
+for p in sorted(Path("data/controlled/raw/2026-10-14").glob("*.json")):
+    _, x, fs = I.load_trial(p)
+    s = x.size / fs
+    a = len(I.find_impacts(x, fs, I.noise_baseline(x, fs))["impacts"])
+    b = len(I.find_impacts(x, fs)["impacts"])  # no baseline given: the quietest 2 s
+    print(p.stem, f"{a / s * 60:.1f}", f"{b / (s - 1) * 60:.1f}")
+```
+
+`fs_noise_02` contains one footstep-sized event at 31 s, most likely someone moving. Two of the sidecars had notes carried over from a walking trial; they described the walk, not the noise recording, and are removed in this copy (see `published_note`).
+
 ## 2026-10-19: stomps, bare sensor against vase base enclosure
 
 One walker (Danny) made 10 stomps per trial, standing at 1 m or 2 m from the sensor on the same floor. Three trials per condition:

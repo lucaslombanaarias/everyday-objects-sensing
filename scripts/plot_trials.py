@@ -196,7 +196,8 @@ def main(argv=None):
         events = impacts.read_events(analysis / f"events_{t['meta']['trial_id']}.csv")
         rows.append(impacts.count_row(t, events))
         print(plot_trial(t, events, args.folder, out))
-    print(plot_summary(rows, out))
+    if any(r["impacts_made"] for r in rows):  # a folder of noise trials has no summary
+        print(plot_summary(rows, out))
     with (analysis / "impacts_counts.csv").open(encoding="utf-8") as f:
         print(f"{len(list(csv.DictReader(f)))} trials in {analysis / 'impacts_counts.csv'}")
 
