@@ -29,16 +29,17 @@ const designs=[
 {id:'bowl',title:'Bowl Exterior Mount',icon:'◒',context:'Toilet',class:'Hidden',rooms:['Bathroom'],style:'Minimal',desc:'Discreet housing intended for attachment to the toilet bowl exterior.',mount:'Exterior bowl attachment only. Never placed in water.',cable:'Cable route must stay clear of water exposure and reach an outlet.',fit:'Allow approximately 2 mm PCB tolerance.',notes:'Sample catalog record.'},
 {id:'rear',title:'Rear Bowl Cover',icon:'◐',context:'Toilet',class:'Hidden',rooms:['Bathroom'],style:'Modern',desc:'Conceals the sensor toward the rear exterior of the fixture.',mount:'Exterior fixture attachment only; never in water.',cable:'Keep wiring discreet and away from wet areas.',fit:'Allow approximately 2 mm PCB tolerance.',notes:'Sample catalog record.'}
 ];
-let answers={goal:'',visibility:''};let plan=JSON.parse(localStorage.getItem('sensorPlan')||'{}');
+let answers={goal:'',visibility:''};let plan={};try{const stored=JSON.parse(localStorage.getItem('sensorPlan')||'{}');if(stored&&typeof stored==='object'&&!Array.isArray(stored))for(const [id,qty] of Object.entries(stored))if(/^[a-z0-9][a-z0-9-]{1,63}$/.test(id)&&Number.isSafeInteger(qty)&&qty>0)plan[id]=qty}catch(e){}
 function go(id){document.getElementById(id).scrollIntoView({behavior:'smooth'})}
 function pick(el,key){el.parentElement.querySelectorAll('.choice').forEach(x=>x.classList.remove('selected'));el.classList.add('selected');answers[key]=el.dataset.val}
 function nextStep(n){document.querySelectorAll('.step').forEach(x=>x.classList.remove('active'));document.getElementById('s'+n).classList.add('active')}
 function previewPhoto(e){const f=e.target.files[0];if(!f)return;const img=document.getElementById('photoPreview');img.src=URL.createObjectURL(f);img.style.display='inline-block'}
 function recommendationPool(){let context='';if(answers.goal==='movement')context='Floor';if(answers.goal==='bed')context='Bed';if(answers.goal==='bathroom')context='Toilet';return designs.filter(d=>(!context||d.context===context)&&(!answers.visibility||d.class===answers.visibility)).slice(0,4)}
 function showRecommendations(){nextStep(4);const pool=recommendationPool();const photo=document.getElementById('roomPhoto').files.length;let reason='These starting points match the preferences you selected.';if(photo)reason+=' Your room photo is attached, but this local build does not analyze it yet. Once the approved AI service is connected, visible room features will be incorporated into this explanation and ranking.';document.getElementById('recommendationReason').innerHTML='<b>Why these?</b> '+reason;document.getElementById('recommendationGrid').innerHTML=pool.map(card).join('')}
-function card(d){return `<article class="design"><div class="thumb">${d.icon}</div><div class="designbody"><div class="tags"><span class="tag">${d.context}</span><span class="tag">${d.class}</span><span class="tag">${d.style}</span></div><h3>${d.title}</h3><p>${d.desc}</p><div class="design-actions"><button class="btn secondary" onclick="showDetail('${d.id}')">Details</button><button class="btn primary" onclick="addPlan('${d.id}')">+ Add to plan</button></div></div></article>`}
+function safeDisplay(d){return Object.fromEntries(Object.entries(d).map(([k,v])=>[k,typeof v==='string'?esc(v):Array.isArray(v)?v.map(x=>esc(x)):v]))}
+function card(d){d=safeDisplay(d);return `<article class="design"><div class="thumb">${d.icon}</div><div class="designbody"><div class="tags"><span class="tag">${d.context}</span><span class="tag">${d.class}</span><span class="tag">${d.style}</span></div><h3>${d.title}</h3><p>${d.desc}</p><div class="design-actions"><button class="btn secondary" onclick="showDetail('${d.id}')">Details</button><button class="btn primary" onclick="addPlan('${d.id}')">+ Add to plan</button></div></div></article>`}
 function renderCatalog(){const q=(document.getElementById('search')?.value||'').toLowerCase(),c=document.getElementById('contextFilter')?.value||'',k=document.getElementById('classFilter')?.value||'',r=document.getElementById('roomFilter')?.value||'',s=document.getElementById('styleFilter')?.value||'';const out=designs.filter(d=>(!q||(d.title+' '+d.desc+' '+d.context+' '+d.style).toLowerCase().includes(q))&&(!c||d.context===c)&&(!k||d.class===k)&&(!r||d.rooms.includes(r))&&(!s||d.style===s));document.getElementById('catalogGrid').innerHTML=out.map(card).join('')||'<div class="card">No designs match those filters.</div>';document.getElementById('catalogCount').textContent=`Showing ${out.length} of ${designs.length} designs`}
-function showDetail(id){const d=designs.find(x=>x.id===id);document.getElementById('detailContent').innerHTML=`<div class="eyebrow">${d.context} · ${d.class}</div><h2 style="margin:6px 0 4px">${d.title}</h2><p class="lead">${d.desc}</p><div class="detail-grid"><div class="detail-box"><b>Best for</b><br>${d.rooms.join(', ')} · ${d.style} style</div><div class="detail-box"><b>Sensor fit</b><br>${d.fit}</div><div class="detail-box"><b>Installation</b><br>${d.mount}</div><div class="detail-box"><b>Power / cable</b><br>${d.cable}</div></div><div class="notice warn"><b>Catalog status:</b> ${d.notes} Source URL, creator, license, exact dimensions, print files, and final installation instructions must be populated by the team before publication.</div><button class="btn primary" onclick="addPlan('${d.id}');closeDetail()">Add to my sensor plan</button>`;document.getElementById('detailModal').classList.add('open')}
+function showDetail(id){const found=designs.find(x=>x.id===id);if(!found)return;const d=safeDisplay(found);document.getElementById('detailContent').innerHTML=`<div class="eyebrow">${d.context} · ${d.class}</div><h2 style="margin:6px 0 4px">${d.title}</h2><p class="lead">${d.desc}</p><div class="detail-grid"><div class="detail-box"><b>Best for</b><br>${d.rooms.join(', ')} · ${d.style} style</div><div class="detail-box"><b>Sensor fit</b><br>${d.fit}</div><div class="detail-box"><b>Installation</b><br>${d.mount}</div><div class="detail-box"><b>Power / cable</b><br>${d.cable}</div></div><div class="notice warn"><b>Catalog status:</b> ${d.notes} Source URL, creator, license, exact dimensions, print files, and final installation instructions must be populated by the team before publication.</div><button class="btn primary" onclick="addPlan('${d.id}');closeDetail()">Add to my sensor plan</button>`;document.getElementById('detailModal').classList.add('open')}
 function closeDetail(){document.getElementById('detailModal').classList.remove('open')}
 function addPlan(id){plan[id]=(plan[id]||0)+1;savePlan();flashPlan()}
 function changeQty(id,delta){plan[id]=(plan[id]||0)+delta;if(plan[id]<=0)delete plan[id];savePlan();renderPlan()}
@@ -46,11 +47,59 @@ function savePlan(){localStorage.setItem('sensorPlan',JSON.stringify(plan));upda
 function updatePlanCounts(){const total=Object.values(plan).reduce((a,b)=>a+b,0);document.getElementById('navCount').textContent=total;document.getElementById('barCount').textContent=total;document.getElementById('planBar').classList.toggle('hidden',total===0)}
 function flashPlan(){document.getElementById('planBar').classList.remove('hidden')}
 function openPlan(){document.getElementById('plan').classList.add('active');renderPlan();go('planSection')}
-function renderPlan(){const ids=Object.keys(plan);const list=document.getElementById('planList');if(!ids.length){list.innerHTML='<div class="card">Your sensor plan is empty. Add designs from the catalog or recommendations.</div>';document.getElementById('planSummary').textContent='0 sensors selected.';return}list.innerHTML=ids.map(id=>{const d=designs.find(x=>x.id===id);return `<div class="plan-item"><div><div class="tags"><span class="tag">${d.context}</span><span class="tag">${d.class}</span></div><h3 style="margin:7px 0 3px">${d.title}</h3><div style="color:var(--muted);font-size:14px">${d.mount}</div></div><div class="qty no-print"><button onclick="changeQty('${id}',-1)">−</button><b>${plan[id]}</b><button onclick="changeQty('${id}',1)">+</button></div><div class="hidden print-qty">Quantity: ${plan[id]}</div></div>`}).join('');const total=Object.values(plan).reduce((a,b)=>a+b,0);const contexts=[...new Set(ids.map(id=>designs.find(x=>x.id===id).context))];document.getElementById('planSummary').textContent=`${total} sensor${total===1?'':'s'} selected across ${contexts.length} sensing context${contexts.length===1?'':'s'} (${contexts.join(', ')}).`}
+function renderPlan(){const ids=Object.keys(plan);const list=document.getElementById('planList');if(!ids.length){list.innerHTML='<div class="card">Your sensor plan is empty. Add designs from the catalog or recommendations.</div>';document.getElementById('planSummary').textContent='0 sensors selected.';return}list.innerHTML=ids.map(id=>{const found=designs.find(x=>x.id===id);if(!found)return '';const d=safeDisplay(found);return `<div class="plan-item"><div><div class="tags"><span class="tag">${d.context}</span><span class="tag">${d.class}</span></div><h3 style="margin:7px 0 3px">${d.title}</h3><div style="color:var(--muted);font-size:14px">${d.mount}</div></div><div class="qty no-print"><button onclick="changeQty('${id}',-1)">−</button><b>${plan[id]}</b><button onclick="changeQty('${id}',1)">+</button></div><div class="hidden print-qty">Quantity: ${plan[id]}</div></div>`}).join('');const total=Object.values(plan).reduce((a,b)=>a+b,0);const contexts=[...new Set(ids.map(id=>designs.find(x=>x.id===id).context))];document.getElementById('planSummary').textContent=`${total} sensor${total===1?'':'s'} selected across ${contexts.length} sensing context${contexts.length===1?'':'s'} (${contexts.join(', ')}).`}
 function clearPlan(){if(confirm('Clear your sensor plan?')){plan={};savePlan();renderPlan()}}
 function exportPlan(){const ids=Object.keys(plan);let txt='MY SENSOR PLAN\nHomeSense Catalog · UIUC Ubihealth Lab\n\n';ids.forEach(id=>{const d=designs.find(x=>x.id===id);txt+=`${d.title}\nQuantity: ${plan[id]}\nContext: ${d.context}\nInstallation: ${d.mount}\nPower: ${d.cable}\n\n`});txt+='Research design-selection aid; not a medical recommendation or diagnosis.\n';const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'text/plain'}));a.download='my-sensor-plan.txt';a.click();URL.revokeObjectURL(a.href)}
 function toggleChat(force){const c=document.getElementById('chat');c.classList.toggle('open',force===undefined?!c.classList.contains('open'):force)}function quickChat(t){document.getElementById('chatInput').value=t;sendChat()}
 function sendChat(){const i=document.getElementById('chatInput'),t=i.value.trim();if(!t)return;const b=document.getElementById('chatBody');b.insertAdjacentHTML('beforeend',`<div class="msg user">${esc(t)}</div>`);let r='I can help. In the connected version, I will ask follow-up questions and recommend only designs that the research team has approved.';const l=t.toLowerCase();if(/bed|sleep|night/.test(l))r='Bed sensing may be relevant. I would start with designs that attach directly to a rigid bed frame or wooden slat, then narrow them by how visible you want the installation to be.';else if(/walk|movement|fall|floor|hall/.test(l))r='Floor sensing may be relevant for movement around the home. I can narrow options by room and whether you prefer a hidden design or one integrated into an everyday object.';else if(/bath|toilet/.test(l))r='A toilet-area sensor may be relevant. Approved concepts attach only to the exterior of the bowl and are never placed in water.';else if(/plant/.test(l))r='If plants are already part of the room, the Potted Plant Base may visually fit well. In the AI-connected version, a room photo could support that recommendation when plants are actually visible.';else if(/not sure|don't know|dont know/.test(l))r='Start with what you want to understand rather than a sensor type. For example: movement through the home, activity associated with the bed, or bathroom activity.';b.insertAdjacentHTML('beforeend',`<div class="msg bot">${r}</div>`);i.value='';b.scrollTop=b.scrollHeight}
 function esc(s){return s.replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#39;'}[m]))}
 renderCatalog();updatePlanCounts();
+</script><script>
+// Backend integration: replace demo concepts with only curator-approved designs when served via server.py.
+async function connectCatalog(){
+  try {
+    const response=await fetch('/api/designs',{cache:'no-store'});
+    if(!response.ok) return;
+    const data=await response.json();
+    if(!Array.isArray(data.designs))return;
+    designs.splice(0,designs.length,...data.designs.map(d=>({
+      id:d.id,title:d.title,desc:d.description||'',context:d.context,
+      class:d.design_class,rooms:d.rooms||[],style:d.style||'Minimal',
+      icon:'▣',mount:d.mounting_method||d.installation_notes||'Installation not specified',
+      cable:d.cable_notes||'Cable path not specified',
+      fit:d.sensor_fit_status||'Sensor fit not yet verified',
+      notes:'Status: approved catalog entry. Creator: '+(d.creator||'not specified')+'; license: '+(d.license||'not specified'),
+      model_file_url:d.model_file_url||'',thumbnail_url:d.thumbnail_url||'',
+      source_url:d.source_url||'',dimensions:d.dimensions||'',material:d.material||''
+    })));
+    // Existing demo plan may reference nonexistent IDs.
+    for(const id of Object.keys(plan))if(!designs.some(d=>d.id===id))delete plan[id];
+    savePlan();
+    const p=document.querySelector('#catalog .lead');
+    if(p)p.textContent='Browse designs published by the Ubihealth research team. Only active records appear here.';
+    const oldCard=card;
+    card=function(d){const raw=oldCard(d);const thumb=d.thumbnail_url?'<img src="'+esc(d.thumbnail_url)+'" alt="" style="width:100%;height:165px;object-fit:contain">':d.icon;return raw.replace('<div class="thumb">'+d.icon+'</div>','<div class="thumb">'+thumb+'</div>')};
+    const oldShowDetail=showDetail;
+    showDetail=function(id){oldShowDetail(id);const d=designs.find(x=>x.id===id);if(!d)return;
+      const holder=document.getElementById('detailContent');
+      const links=document.createElement('p');
+      if(d.model_file_url){const a=document.createElement('a');a.href=d.model_file_url;a.textContent='Download CAD model';a.download='';links.append(a)}
+      if(d.source_url){const a=document.createElement('a');a.href=d.source_url;a.target='_blank';a.rel='noopener noreferrer';a.textContent='  Original design source';links.append(a)}
+      holder.append(links);
+    };
+    renderCatalog();
+  }catch(e){if(location.protocol!=='file:'){designs.splice(0);renderCatalog();document.getElementById('catalogCount').textContent='Catalog unavailable. Please reload to try again.'}}
+}
+// Use the free-tier-compatible Gemini backend if configured; otherwise preserve the demo assistant.
+const demoSendChat=sendChat;
+sendChat=async function(){
+ const input=document.getElementById('chatInput'),question=input.value.trim();if(!question)return;
+ let health;try{health=await (await fetch('/api/health')).json()}catch(e){return demoSendChat()}
+ if(!health.ai_configured)return demoSendChat();
+ const body=document.getElementById('chatBody');body.insertAdjacentHTML('beforeend','<div class="msg user">'+esc(question)+'</div>');input.value='';
+ const msg=document.createElement('div');msg.className='msg bot';msg.textContent='Thinking…';body.append(msg);
+ try{let r=await fetch('/api/ai/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({message:question})});let data=await r.json();msg.textContent=data.reply||data.error||'AI unavailable'}catch(e){msg.textContent='AI connection unavailable. Try again later.'}
+ body.scrollTop=body.scrollHeight;
+};
+connectCatalog();
 </script></body></html>
