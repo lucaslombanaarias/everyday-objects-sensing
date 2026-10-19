@@ -83,9 +83,10 @@ DROPS = ("drop_stand", "ball_drop")
 """Excitations with a drop height and tip; walking has no single excitation point."""
 AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 TRIAL_PLOT_H = 260
-FALSE_ALARMS_HIGH = 4.0
+FALSE_ALARMS_HIGH = 3.0
 """False alarms per minute on a noise-only trial shown in orange. With det-v1 the 10/14
-noise trials give 1.3 to 2.0 per minute (1.3 to 4.0 against their quietest 2 s instead)."""
+noise trials give 1.3 to 2.0 per minute; the floor procedure (docs/testing/floor_procedure.md)
+stops a block above 3."""
 
 
 
@@ -408,6 +409,10 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.fw_edit = QtWidgets.QLineEdit(fw[:7], placeholderText="commit flashed on the board")
         self.prefix_edit = QtWidgets.QLineEdit("fs")
         self.notes_edit = QtWidgets.QLineEdit(placeholderText="e.g. walking circle, 5 steps on marks")
+        # Notes carry over between trials, so Record stops once when they are unchanged.
+        self.last_notes = None          # (notes, trial id) of the last saved trial
+        self.notes_confirmed = False
+        self.notes_edit.textChanged.connect(self._notes_edited)
         self.trial_edit = QtWidgets.QLineEdit()
         form = QtWidgets.QFormLayout()
         for label, w in [("Excitation", self.type_box), ("Impacts made", self.made),
@@ -621,6 +626,21 @@ class PcmDashboard(QtWidgets.QMainWindow):
                 self.rec_lbl.setText("<span style='color:#ffa726'>not recording: "
                                      + "; ".join(problems) + "</span>")
                 return
+            notes = self.notes_edit.text().strip()
+            if (self.last_notes and notes and notes == self.last_notes[0]
+                    and not self.notes_confirmed):
+                # Refuse once, so carried-over notes are read before they are saved again.
+                self.notes_confirmed = True
+                self.rec_btn.blockSignals(True)
+                self.rec_btn.setChecked(False)
+                self.rec_btn.blockSignals(False)
+                self.notes_edit.setStyleSheet("border:2px solid #ffa726")
+                self.rec_lbl.setText(
+                    "<span style='color:#ffa726'>not recording: Notes are unchanged from "
+                    f"{self.last_notes[1]}. Edit them, or press Record again to keep them."
+                    "</span>")
+                return
+            self.notes_edit.setStyleSheet("")
             with link.lock:
                 link.recording = []
                 link.rec_first = None
@@ -665,11 +685,17 @@ class PcmDashboard(QtWidgets.QMainWindow):
         if problems := validate_meta(meta):
             warning += f" (saved, but incomplete: {'; '.join(problems)})"
         paths = write_trial(capture, meta, self.args.out_dir)
+        self.last_notes = (self.notes_edit.text().strip(), trial)
+        self.notes_confirmed = False
         verdict = "checks OK" if capture.checks["ok"] else "CHECKS FAILED (see .json)"
         self.rec_lbl.setText(f"{verdict}, {capture.checks['samples']:,} samples{warning}\n"
                              f"saved {trial}.csv/.json/.mat in {paths['json'].parent}")
         self._suggest_trial_id()
         self._refresh_results(show=trial, switch_tab=True)
+
+    def _notes_edited(self):
+        self.notes_confirmed = False
+        self.notes_edit.setStyleSheet("")
 
     def _record_argv(self, trial, duration=None):
         duration = time.time() - self.rec_start if duration is None else duration
