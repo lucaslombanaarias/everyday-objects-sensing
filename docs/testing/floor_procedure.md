@@ -10,11 +10,12 @@ Write these down before the first trial and do not change them during a session.
 
 | Item | Setting |
 |---|---|
-| Measurand | The VPU output: uncalibrated PCM counts (int16, full scale ±32,768), an acceleration-type signal per the sponsor, with no conversion to m/s². Every level reported (event dB, thresholds, plots) is in dB relative to that session's noise baseline, 20·log10(RMS / baseline RMS), not an absolute unit. |
+| Measurand | The VPU output: uncalibrated PCM counts (int16, range −32,768 to +32,767), an acceleration-type signal per the sponsor, with no conversion to m/s². Every level reported (event dB, thresholds, plots) is in dB relative to that session's noise baseline, 20·log10(RMS / baseline RMS), not an absolute unit. |
 | Detection criterion (det-v1) | High-pass 100 Hz (4th-order Butterworth), RMS over a 5 ms detection window evaluated 1,000 times per second, event when the RMS peaks at least **14 dB** above the noise baseline, peaks closer than **0.25 s** merged into the highest. |
 | Floor | One floor per session. Another floor is another session (or at least another block with its own baseline). |
 | Impact points | One fixed point per radius (P0.5, P1, P2; P3 for extensions). All drops and stomps at a radius land there. |
 | Recording window | 3 s still after Record, the excitation, 3 s still before Stop. |
+| Drop height and ball | One ball (type and mass) and one drop height per floor, the same on both days of the core repeat. Enter them in Drop height and Tip, and on the session sheet. |
 | Footwear | One footwear per block, written in Notes. Hard soles and socks are different conditions. |
 
 ## 1. Test plan
@@ -71,7 +72,7 @@ Shuffle the radius order for each block and write it on the session sheet before
 
 ### Software
 
-1. In the repo folder, update and run the tests. All should pass (136 as of 2026-10-19). Write the commit on the session sheet.
+1. In the repo folder, update and run the tests. All should pass (144 as of 2026-10-19). Write the commit on the session sheet.
    ```
    git pull
    python -m pytest -q
@@ -162,7 +163,7 @@ Use the port from the list. On another laptop, set up the repo's environment fir
 | Mount | See section 6. Required. It starts blank at launch; Record refuses until one is picked, then it stays for the following trials. |
 | Baseline noise | Fills itself with the newest noise trial. Leave it. |
 | Operator | Who runs the laptop. |
-| Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. |
+| Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. When they are unchanged from the last saved trial, Record stops once and outlines Notes in orange; edit them, or press Record again to keep them. |
 | ID prefix | One per condition, see below. |
 | Trial ID | Fills itself in. Do not type one. |
 
@@ -186,7 +187,7 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 1. Set the prefix for the coming block, Excitation to noise only, and the Mount as it will be for the block.
 2. Everyone still and silent; phones face down and not on the floor.
 3. Record a full **60 s**.
-4. In the Results tab, read the noise table: **false alarms** and **per min**. These are det-v1 events in a recording where nothing happened. On 10/14 det-v1 gave 1.3 to 2.0 per minute. Above about 3 per minute, find the source before continuing (the dashboard turns the rate orange above 4).
+4. In the Results tab, read the noise table: **false alarms** and **per min**. These are det-v1 events in a recording where nothing happened. On 10/14 det-v1 gave 1.3 to 2.0 per minute. Above 3 per minute, find the source before continuing; the dashboard shows the rate in orange above 3.
 5. Tag each false alarm with its likely cause (`other_noise` or `unknown`) and write the cause on the sheet.
 
 ## 9. Trial blocks
@@ -213,8 +214,8 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 
 ### D. Single and double step (extension)
 
-- Single step: the walker starts still, both feet together one step outside the P mark, steps one foot onto P, and **freezes in that split stance** (do not bring the other foot up, which would be a second footfall). Impacts made = 1.
-- Double step: start two steps out, step onto the mark before P and then onto P, freeze in split stance. Impacts made = 2.
+- Single step: the walker starts still with both feet on mark N (the mark next to P, clockwise), steps one foot onto P, and **freezes in that split stance** (do not bring the other foot up, which would be a second footfall). Impacts made = 1.
+- Double step: start on mark N−1, step onto mark N, then onto P, and freeze in split stance. Impacts made = 2.
 - Three to five trials of each per radius.
 
 ### E. Walking a circle (extension, after D)
@@ -236,7 +237,7 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 ## 10. Per-trial routine
 
 1. Everyone still; the walker or dropper in the start position.
-2. Check the form: excitation, impacts made, point, radius, mount, prefix, and that Notes describe this trial (not the last one).
+2. Check the form: excitation, impacts made, point, radius, mount, prefix, and that Notes describe this trial, not the last one (Record stops once if they are unchanged).
 3. Press Record (or `R`). Wait 3 s. Any click lands in the first second, where it is flagged as an edge event.
 4. Make exactly the planned excitation.
 5. Hold still 3 s. Press Stop.
@@ -251,7 +252,7 @@ The Results tab opens on the trial just recorded. The header shows made, found a
 | On the plot | Meaning |
 |---|---|
 | Bold orange curve | The RMS over the 5 ms window. This is what the detector tests. |
-| Dashed line | The 14 dB threshold, for the orange curve. The faint blue waveform behind it can cross the line without an event: a sharp peak is 2 to 3 times its 5 ms RMS. |
+| Dashed line | The 14 dB threshold, for the orange curve. The faint blue waveform behind it can cross the line without an event: on the 2026-10-19 stomp trials (122 events), an event's waveform peak was 1.4 to 3.2 times its 5 ms RMS (median 1.65 with the bare sensor, 2.6 in the vase enclosure). |
 | Green dot, numbered | A detected event. |
 | Orange dot | An event within 1 s of the start or end (edge). Flagged, never dropped. |
 | Hollow circle with a dB value | A peak between 10 dB and the threshold: a near miss, not an event. |
@@ -274,7 +275,7 @@ Stop the block and fix the cause if:
 
 - Stop reports "CHECKS FAILED", or the status bar shows CRC errors, gaps or overflows climbing.
 - The sample rate in the status bar stays more than 2% away from 48,000 (it normally wobbles by a few hundred).
-- A noise baseline shows more than about 3 false alarms per minute.
+- A noise baseline shows more than 3 false alarms per minute.
 - The board or weight has moved off the tape cross, or the weight rocks.
 - The background rises: events appear before anyone moves. Find what started running, then record a new baseline.
 - The trial crossed midnight without a new baseline after it.
@@ -321,7 +322,7 @@ Each rule above traces to something that happened in the first sessions.
 - **10/18:** socks or soft soles plus a different mount left the steps 35 to 40 dB weaker above 100 Hz than on 10/14, so det-v1 saw almost none. Change one thing at a time; footwear is its own condition.
 - **10/18:** a trial recorded before its noise baseline was measured against itself, and a 10 s baseline missed a source that started later. Baseline first, 60 s, renewed after changes.
 - **10/19:** the operator's click on Record was counted as an impact. Wait 3 s after Record; keep the laptop off the floor.
-- **10/19:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes and set the prefix per condition.
+- **10/19:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes (Record now stops once on unchanged Notes) and set the prefix per condition.
 - **10/19:** a stomp whose waveform crossed the line was missed at 13.1 dB on the RMS. The threshold is on the RMS; the plot now shows near misses.
 - **10/19:** trials after midnight go to a new date folder. Record a new baseline after midnight.
 
