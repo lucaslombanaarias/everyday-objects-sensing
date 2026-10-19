@@ -208,9 +208,9 @@ def skipped_peaks(traces: dict, floor_db: float = SKIPPED_FLOOR_DB,
 
 
 MERGED_SEPARATION_S = 0.15
-"""For display only: one impact's ringing lasts up to about 0.15 s (0.10 to 0.14 s seen on
-2026-10-19), so a peak of the detection level farther than this from a stronger one is a
-separate burst."""
+"""For display only: one impact's ringing lasts up to about 0.15 s (0.10 to 0.14 s seen in
+the 2026-10-18 evening session), so a peak of the detection level farther than this from a
+stronger one is a separate burst."""
 
 
 def merged_peaks(traces: dict, event_times: list[float],

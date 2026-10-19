@@ -252,7 +252,7 @@ The Results tab opens on the trial just recorded. The header shows made, found a
 | On the plot | Meaning |
 |---|---|
 | Bold orange curve | The RMS over the 5 ms window. This is what the detector tests. |
-| Dashed line | The 14 dB threshold, for the orange curve. The faint blue waveform behind it can cross the line without an event: on the 2026-10-19 stomp trials (122 events), an event's waveform peak was 1.4 to 3.2 times its 5 ms RMS (median 1.65 with the bare sensor, 2.6 in the vase enclosure). |
+| Dashed line | The 14 dB threshold, for the orange curve. The faint blue waveform behind it can cross the line without an event: on the 18 October evening session's stomp trials (122 events, recorded just after midnight), an event's waveform peak was 1.4 to 3.2 times its 5 ms RMS (median 1.65 with the bare sensor, 2.6 in the vase enclosure). |
 | Green dot, numbered | A detected event. |
 | Orange dot | An event within 1 s of the start or end (edge). Flagged, never dropped. |
 | Hollow circle with a dB value | A peak between 10 dB and the threshold: a near miss, not an event. |
@@ -321,9 +321,9 @@ Each rule above traces to something that happened in the first sessions.
 - **10/15:** Vakakis asked for a few reliable measurements over many, repeated on different days. Core plan first, second-day repeat, extensions only after the core check.
 - **10/18:** socks or soft soles plus a different mount left the steps 35 to 40 dB weaker above 100 Hz than on 10/14, so det-v1 saw almost none. Change one thing at a time; footwear is its own condition.
 - **10/18:** a trial recorded before its noise baseline was measured against itself, and a 10 s baseline missed a source that started later. Baseline first, 60 s, renewed after changes.
-- **10/19:** the operator's click on Record was counted as an impact. Wait 3 s after Record; keep the laptop off the floor.
-- **10/19:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes (Record now stops once on unchanged Notes) and set the prefix per condition (it now starts blank and is required).
-- **10/19:** a stomp whose waveform crossed the line was missed at 13.1 dB on the RMS. The threshold is on the RMS; the plot now shows near misses.
-- **10/19:** trials after midnight go to a new date folder. Record a new baseline after midnight.
+- **10/18 evening:** the operator's click on Record was counted as an impact. Wait 3 s after Record; keep the laptop off the floor.
+- **10/18 evening:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes (Record now stops once on unchanged Notes) and set the prefix per condition (it now starts blank and is required).
+- **10/18 evening:** a stomp whose waveform crossed the line was missed at 13.1 dB on the RMS. The threshold is on the RMS; the plot now shows near misses.
+- **10/18 evening:** the session crossed midnight, so its later trials went to a new date folder. Record a new baseline after midnight.
 
 Detection settings and the tools referenced here: `everyday_sensing.impacts` (det-v1), `tools/dashboard/vpu_pcm_dashboard.py`, `scripts/plot_trials.py`, and `data/controlled/` for published trials.

@@ -31,7 +31,9 @@ for p in sorted(Path("data/controlled/raw/2026-10-14").glob("*.json")):
 
 `fs_noise_02` contains one footstep-sized event at 31 s, most likely someone moving. Two of the sidecars had notes carried over from a walking trial; they described the walk, not the noise recording, and are removed in this copy (see `published_note`).
 
-## 2026-10-19: stomps, bare sensor against vase base enclosure
+## Session of 18 October, evening: stomps, bare sensor against vase base enclosure
+
+Folder `session_2026-10-18_evening`. The session started on the evening of 18 October; these trials ran just after midnight, 00:15 to 00:30 on 19 October, so each trial keeps its actual `date` (2026-10-19) and `start_time`.
 
 One walker (Danny) made 10 stomps per trial, standing at 1 m or 2 m from the sensor on the same floor. Three trials per condition:
 
