@@ -77,6 +77,8 @@ BANDS = {
 COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb6a",
           "edge": "#ffa726"}
 TRIAL_TYPES = [*EXCITATIONS, "noise only"]
+DROPS = ("drop_stand", "ball_drop")
+"""Excitations with a drop height and tip; walking has no single excitation point."""
 AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 TRIAL_PLOT_H = 260
 FALSE_ALARMS_HIGH = 4.0
@@ -424,6 +426,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         trial = page([intro, form, self.rec_btn,
                       self.rec_lbl, QtWidgets.QWidget()])
         trial.layout().setStretch(trial.layout().count() - 1, 1)
+        self._type_changed()
 
         # Results: last trial and per-distance summary
         self.result_lbl = QtWidgets.QLabel("no trial recorded yet", wordWrap=True,
@@ -517,8 +520,13 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.notes_edit.setText(self.notes_by_type.get(kind, ""))
         self.last_type = kind
         noise = kind == "noise only"
-        for w in (self.dist, self.made, self.point_edit, self.height, self.tip_edit):
+        for w in (self.dist, self.made):
             w.setEnabled(not noise)
+        # Fields that do not apply are greyed out and left out of the trial; their values
+        # stay in the form for when the excitation is switched back.
+        self.point_edit.setEnabled(not noise and kind != "walking")
+        for w in (self.height, self.tip_edit):
+            w.setEnabled(kind in DROPS)
 
     def _trial_taken(self, trial):
         stem = self._folder() / trial
@@ -669,10 +677,10 @@ class PcmDashboard(QtWidgets.QMainWindow):
             argv += ["--excitation-type", kind, "--distance-m", f"{self.dist.value():g}"]
             if self.made.value():
                 argv += ["--impacts", str(self.made.value())]
-            if self.height.value():
+            if self.height.isEnabled() and self.height.value():
                 argv += ["--drop-height-cm", f"{self.height.value():g}"]
             for flag, edit in [("--excitation-point", self.point_edit), ("--tip", self.tip_edit)]:
-                if edit.text().strip():
+                if edit.isEnabled() and edit.text().strip():
                     argv += [flag, edit.text().strip()]
         argv += ["--mount-method", self.mount_box.currentText()]
         if self.block_box.currentText().strip():
