@@ -10,6 +10,7 @@ Write these down before the first trial and do not change them during a session.
 
 | Item | Setting |
 |---|---|
+| Measurand | The VPU output: uncalibrated PCM counts (int16, full scale ±32,768), an acceleration-type signal per the sponsor, with no conversion to m/s². Every level reported (event dB, thresholds, plots) is in dB relative to that session's noise baseline, 20·log10(RMS / baseline RMS), not an absolute unit. |
 | Detection criterion (det-v1) | High-pass 100 Hz (4th-order Butterworth), RMS over a 5 ms detection window evaluated 1,000 times per second, event when the RMS peaks at least **14 dB** above the noise baseline, peaks closer than **0.25 s** merged into the highest. |
 | Floor | One floor per session. Another floor is another session (or at least another block with its own baseline). |
 | Impact points | One fixed point per radius (P0.5, P1, P2, P3). All drops and stomps at a radius land there. |
