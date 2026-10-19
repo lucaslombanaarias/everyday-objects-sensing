@@ -36,6 +36,10 @@ INT16_LIMITS = (-32768, 32767)
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_OUT_DIR = REPO_ROOT / "data" / "raw"
 FIRMWARE_DIR = "firmware/vpu_pcm_stream"
+META_VERSION = 2
+"""Sidecars without meta_version were written before the fields below were added."""
+EXCITATIONS = ("drop_stand", "ball_drop", "single_step", "double_step", "walking", "stomp")
+MOUNTS = ("tape", "putty_wax", "loose", "preloaded")
 
 
 @dataclass
@@ -161,6 +165,51 @@ def _for_mat(value):
     return "" if value is None else value
 
 
+def first_sample_offset_s(host_time_s: np.ndarray, fs_hz: float) -> float:
+    """Host time of the first sample, from the arrival of the first read: the samples of
+    that read were all buffered, so the first of them was taken their duration earlier."""
+    if not host_time_s.size:
+        return 0.0
+    first = np.count_nonzero(host_time_s == host_time_s[0])
+    return float(host_time_s[0] - first / fs_hz)
+
+
+def validate_meta(meta: dict) -> list[str]:
+    """What is missing or not allowed in a new trial's metadata (empty if it is fine).
+    Sidecars from before META_VERSION 2 are not checked; see normalize_meta."""
+    problems = []
+    mount = (meta.get("sensor_mount") or {}).get("method")
+    if mount not in MOUNTS:
+        problems.append(f"mount must be one of {', '.join(MOUNTS)} (got {mount!r})")
+    if meta.get("noise_only"):
+        return problems
+    kind = (meta.get("excitation") or {}).get("type")
+    if kind not in EXCITATIONS:
+        problems.append(f"excitation must be one of {', '.join(EXCITATIONS)} (got {kind!r})")
+    made = meta.get("impacts_made")
+    if not isinstance(made, int) or isinstance(made, bool) or made < 1:
+        problems.append("impacts made is required: the number of impacts made, 1 or more")
+    return problems
+
+
+def normalize_meta(meta: dict) -> dict:
+    """A sidecar with every current field present: fields added after it was written are
+    None. Older values (excitation "footsteps", mount "tape plus weight") are kept as
+    they are."""
+    out = dict(meta)
+    for key in ("meta_version", "floor_material", "distance_m", "impacts_made",
+                "excitation_point_id", "baseline_noise_id"):
+        out.setdefault(key, None)
+    out["excitation"] = {"type": None, "mass_g": None, "drop_height_cm": None, "tip": None,
+                         **(out.get("excitation") or {})}
+    out["sensor_mount"] = {"method": None, "preload": None, **(out.get("sensor_mount") or {})}
+    return out
+
+
+def load_meta(json_path: Path) -> dict:
+    return normalize_meta(json.loads(Path(json_path).read_text(encoding="utf-8")))
+
+
 def write_trial(capture: Capture, meta: dict, out_dir: Path, overwrite: bool = False) -> dict:
     """Write <out_dir>/<date>/<trial_id>.{csv,json,mat}; returns the paths."""
     folder = Path(out_dir) / meta["date"]
@@ -251,9 +300,10 @@ def trash_trial(json_path: Path) -> str:
 
 def build_meta(args: argparse.Namespace, start: datetime.datetime) -> dict:
     return {
+        "meta_version": META_VERSION,
         "trial_id": args.trial_id,
         "date": start.date().isoformat(),
-        "start_time": start.isoformat(timespec="seconds"),
+        "start_time": start.isoformat(timespec="milliseconds"),
         "noise_only": args.noise_only,
         "operator": args.operator,
         "floor_material": args.floor_material,
@@ -265,8 +315,10 @@ def build_meta(args: argparse.Namespace, start: datetime.datetime) -> dict:
             "drop_height_cm": args.drop_height_cm,
             "tip": args.tip,
         },
-        "impacts_made": args.impacts,
+        "excitation_point_id": args.excitation_point,
+        "impacts_made": 0 if args.noise_only else args.impacts,
         "sensor_mount": {"method": args.mount_method, "preload": args.preload},
+        "baseline_noise_id": args.baseline_noise_id,
         "sensor_serial": args.sensor_serial,
         "ambient_conditions": args.ambient,
         "notes": args.notes,
@@ -313,16 +365,21 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--operator")
     p.add_argument("--floor-material")
     p.add_argument("--floor-location")
-    p.add_argument("--distance-m", type=float, help="impact point to sensor center")
-    p.add_argument("--excitation-type", help="e.g. drop, stomp, tap")
+    p.add_argument("--distance-m", type=float,
+                   help="sensor radius: impact point to sensor center, in m")
+    p.add_argument("--excitation-type", help=f"one of {', '.join(EXCITATIONS)}")
+    p.add_argument("--excitation-point", help="ID of the fixed impact point on this floor")
     p.add_argument("--mass-g", type=float)
     p.add_argument("--drop-height-cm", type=float)
     p.add_argument("--tip")
     p.add_argument("--impacts", type=int,
-                   help="number of footsteps, stomps or drops made during the trial")
-    p.add_argument("--mount-method", help="e.g. tape plus weight")
+                   help="number of footsteps, stomps or drops made during the trial "
+                        "(required unless --noise-only)")
+    p.add_argument("--mount-method", help=f"one of {', '.join(MOUNTS)} (required)")
     p.add_argument("--preload", help="e.g. mass on top of the sensor")
     p.add_argument("--sensor-serial")
+    p.add_argument("--baseline-noise-id",
+                   help="noise-only trial recorded as the baseline for this block")
     p.add_argument("--ambient", help="people, HVAC, other noise sources present")
     p.add_argument("--notes")
     p.add_argument("--fw-commit", help="commit the flashed firmware was built from")
@@ -340,6 +397,10 @@ def main(argv: list[str] | None = None) -> int:
     import serial
 
     args = parse_args(argv)
+    problems = validate_meta(build_meta(args, datetime.datetime.now().astimezone()))
+    if problems:
+        print("not recording:\n  " + "\n  ".join(problems))
+        return 2
     ser = serial.Serial()
     ser.port, ser.baudrate, ser.timeout = args.port, 115200, 0.05
     ser.dtr, ser.rts = True, False  # RTS high would hold the ESP32-C6 in reset
@@ -355,6 +416,7 @@ def main(argv: list[str] | None = None) -> int:
         capture = acquire(ser, args.duration, args.fs_hz)
     finally:
         ser.close()
+    start += datetime.timedelta(seconds=first_sample_offset_s(capture.host_time_s, args.fs_hz))
     if not capture.checks["frames"]:
         print("no frames received: is firmware/vpu_pcm_stream flashed and nothing else "
               "using the port?")

@@ -34,6 +34,7 @@ import numpy as np
 import scipy.io
 from scipy import signal
 
+from acquisition.record import load_meta
 from everyday_sensing.events import BandEnvelope
 
 
@@ -180,7 +181,7 @@ def find_impacts(
 
 
 def load_trial(json_path: Path) -> tuple[dict, np.ndarray, float]:
-    meta = json.loads(Path(json_path).read_text(encoding="utf-8"))
+    meta = load_meta(json_path)
     mat = scipy.io.loadmat(Path(json_path).with_name(meta["files"]["mat"]))
     return meta, mat["counts"].ravel(), float(np.squeeze(mat["fs_hz"]))
 
@@ -198,6 +199,16 @@ def is_noise(meta: dict) -> bool:
     return bool(meta.get("noise_only")) or (meta.get("excitation") or {}).get("type") == "none"
 
 
+def _when(meta: dict) -> datetime.datetime:
+    """Start time for ordering trials; sidecars store it to the second (before meta_version
+    2) or to the millisecond, so the strings are not compared directly."""
+    try:
+        when = datetime.datetime.fromisoformat(meta["start_time"])
+        return when if when.tzinfo else when.astimezone()
+    except (KeyError, TypeError, ValueError):
+        return datetime.datetime.min.replace(tzinfo=datetime.UTC)
+
+
 def trial_jsons(folder: Path) -> list[Path]:
     """Sidecars written by acquisition.record in folder, oldest first."""
     found = []
@@ -207,7 +218,7 @@ def trial_jsons(folder: Path) -> list[Path]:
         except (OSError, json.JSONDecodeError):
             continue
         if isinstance(meta, dict) and "checks" in meta and "files" in meta:
-            found.append((meta.get("start_time", ""), path))
+            found.append((_when(meta), path))
     return [p for _, p in sorted(found)]
 
 
@@ -230,7 +241,7 @@ def analyze_folder(
     noises = []
     trials = []
     for path in paths:
-        meta = json.loads(path.read_text(encoding="utf-8"))
+        meta = load_meta(path)
         if is_noise(meta):
             key = ("noise", str(path), path.stat().st_mtime)
             if key not in cache:
@@ -238,7 +249,7 @@ def analyze_folder(
                 if loaded is None:
                     continue
                 cache[key] = noise_baseline(loaded[1], loaded[2])
-            noises.append((meta.get("start_time", ""), meta["trial_id"], cache[key]))
+            noises.append((_when(meta), meta["trial_id"], cache[key]))
             trials.append({"meta": meta, "noise_baseline": cache[key], "result": None})
     chosen = None
     if baseline_trial is not None:
@@ -246,13 +257,13 @@ def analyze_folder(
         if chosen is None:
             raise ValueError(f"no noise-only trial named {baseline_trial!r} in {folder}")
     for path in paths:
-        meta = json.loads(path.read_text(encoding="utf-8"))
+        meta = load_meta(path)
         if is_noise(meta):
             continue
         if chosen is not None:
             ref = chosen
         else:
-            before = [n for n in noises if n[0] <= meta.get("start_time", "")]
+            before = [n for n in noises if n[0] <= _when(meta)]
             ref = before[-1] if before else (noises[0] if noises else None)
         key = (str(path), path.stat().st_mtime, threshold_db, ref[1] if ref else None)
         if key not in cache:
@@ -264,7 +275,7 @@ def analyze_folder(
                 result["baseline_source"] = ref[1]
             cache[key] = result
         trials.append({"meta": meta, "result": cache[key]})
-    trials.sort(key=lambda t: t["meta"].get("start_time", ""))
+    trials.sort(key=lambda t: _when(t["meta"]))
     return trials
 
 
