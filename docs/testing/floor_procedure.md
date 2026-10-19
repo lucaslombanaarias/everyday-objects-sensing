@@ -1,6 +1,6 @@
 # Floor Vibration Test Procedure
 
-How to record controlled drops, stomps, steps and walking on different floors and at set distances from the VPU, so that every count the detector reports can be checked against what actually happened.
+How to compare what the VPU picks up bare and inside its enclosure (for example the vase base), from controlled impacts on a floor at set distances. The comparison is in the levels and spectra of the impacts. The detector's event counts are a proof of concept and a sanity check: the sponsor already has step-count data.
 
 Firmware `vpu_pcm_stream` at 48,000 samples/s. Detector det-v1 (frozen). Revised 2026-10-19.
 
@@ -12,58 +12,71 @@ Write these down before the first trial and do not change them during a session.
 |---|---|
 | Measurand | The VPU output: uncalibrated PCM counts (int16, range −32,768 to +32,767), an acceleration-type signal per the sponsor, with no conversion to m/s². Every level reported (event dB, thresholds, plots) is in dB relative to the noise baseline, not an absolute unit: 20·log10(RMS / B), where RMS is the 5 ms detection-window RMS (above 100 Hz) and B is the median of that same RMS over the latest noise-only trial recorded at or before the trial, skipping its first 1 s. If no noise-only trial precedes it, B comes from the first one in the folder; with none at all, from the quietest 2 s of the trial itself. |
 | Detection criterion (det-v1) | High-pass 100 Hz (4th-order Butterworth), RMS over a 5 ms detection window evaluated 1,000 times per second, event when the RMS peaks at least **14 dB** above the noise baseline, peaks closer than **0.25 s** merged into the highest. |
+| Sensor position | The sensor sits on the same tape cross S in both conditions. Switching between bare and enclosed must not move it. |
 | Floor | One floor per session. Another floor is another session (or at least another block with its own baseline). |
-| Impact points | One fixed point per radius (P0.5, P1, P2; P3 for extensions). All drops and stomps at a radius land there. |
+| Impact points | One fixed point per radius (P0.5, P1, P2; P3 for extensions). Every drop at a radius lands there, in both conditions. |
 | Recording window | 3 s still after Record, the excitation, 3 s still before Stop. |
-| Drop height and ball | One ball (type and mass) and one drop height per floor, the same on both days of the core repeat. Enter them in Drop height and Tip, and on the session sheet. |
-| Footwear | One footwear per block, written in Notes. Hard soles and socks are different conditions. |
+| Drop stand | The same stand, ball (type and mass) and release height for every block, both conditions and both days. Enter the height and ball in Drop height and Tip, and on the session sheet. A hand release is a fallback only: write it in Notes, since it adds its own variation to the comparison. |
+| Footwear | For stomps and steps: one footwear per block, written in Notes. Hard soles and socks are different conditions. |
 
 ## 1. Test plan
 
-Every floor gets the core plan, on two different days. Extensions are run only after the core on that floor has passed its check (below). A few trials whose counts are fully explained are worth more than a large matrix with unreviewed events.
+The main plan compares the bare sensor with the sensor in its enclosure. Both conditions get the same impacts from the drop stand at the same points, in alternating blocks within one session, so the impact, the floor and the building are the same for both. Each block starts with its own 60 s noise baseline.
 
-### Core plan (every floor, every session)
+### Main plan: bare against enclosed (every floor, every session)
 
-| Block | Excitation (form value) | Radii | Repetitions | Impacts made | Trials |
-|---|---|---|---|---|---|
-| N | noise only | none | 1 per block, 60 s | 0 | 3 |
-| A | `ball_drop` (or `drop_stand`), single | 0.5, 1, 2 m | 5 per radius | 1 | 15 |
-| B | `ball_drop`, double | 0.5, 1, 2 m | 5 per radius | 2 | 15 |
-| C | `stomp` | 1, 2 m | 3 per radius | 10 | 6 |
+| Block | Condition | ID prefix (tile example) | Contents | Trials |
+|---|---|---|---|---|
+| 1 | Bare | `tile_bare_1` | 60 s noise baseline, then 5 drops at each of P0.5, P1, P2 | 1 + 15 |
+| 2 | Enclosed | `tile_vase_1` | the same | 1 + 15 |
+| 3 | Bare | `tile_bare_2` | the same | 1 + 15 |
+| 4 | Enclosed | `tile_vase_2` | the same | 1 + 15 |
 
-About 36 trials plus baselines, under an hour.
+About 64 trials, roughly 75 minutes. Short on time: 3 drops per radius per block (40 trials).
 
-### Core check (before any extension)
+- Excitation `drop_stand`, impacts made = 1, each drop its own recording.
+- Shuffle the radius order for each block and write it on the session sheet before starting (for example 2, 0.5, 1). Going near to far every time mixes distance with whatever changes over the hour.
+- Switch conditions without moving the sensor's position (section 9). Then record the new block's noise baseline before its first drop.
+- Repeating each condition (blocks 1 and 3, 2 and 4) shows how much a condition varies by itself over the session. A bare-against-enclosed difference only counts when it is clearly larger than that.
 
-The core on a floor passes when:
-- every event in blocks A to C is tagged, and every difference between made and found is explained by a tag, a near-miss marker, or a note;
-- every noise baseline is at or below the false-alarm limit in section 8;
-- no trial failed the checks in section 12, or each one that did was repeated.
+### What to report
 
-Misses at 2 m are a result, not a failure. Unexplained events are a failure.
+For each condition and radius, over the drops of both blocks:
+- the median and middle 50% of each impact's level: the detection level and the three band levels (100 to 500 Hz, 500 to 2000 Hz, 2 to 8 kHz), all in `impacts_trials.csv`;
+- the enclosed-minus-bare difference in each band, in dB;
+- each condition's noise floor: its noise baselines in counts (`<trial>.analysis.json`), and false alarms per minute;
+- the drops found against made, as a sanity check of the detector.
+
+The levels are relative to each block's own noise baseline. To compare received level directly, also compare the impacts' RMS in counts, which does not depend on the baseline. A script that makes this comparison table and an averaged impact spectrum per condition is not written yet; until then the per-impact levels are in `impacts_trials.csv`.
+
+### Check before reporting
+
+- Every noise baseline is at or below the false-alarm limit in section 8.
+- No trial failed the checks in section 12, or each one that did was repeated.
+- Every drop is found, or its miss or extra is explained by a tag, a near-miss marker, or a note. Misses at 2 m are a result, not a failure.
 
 ### Repeat on a second day
 
-Run the core again on the same floor, with the same mount, ball, and drop height, on a different day and at a different time of day. Compare found against made per radius between the two days before using either in a report. A difference between days is a systematic error to find, not noise to average away.
+Run the main plan again on the same floor, with the same stand, ball and height, on a different day and at a different time of day. Compare the enclosed-minus-bare differences between the days before using either in a report. A difference between days is a systematic error to find, not noise to average away.
 
-### Extensions (only after the core passes on that floor)
+### Extensions (after the main plan on that floor)
 
-| Block | Excitation | Radii | Repetitions | Impacts made | When |
-|---|---|---|---|---|---|
-| A3, B3, C3 | as A, B, C | 3 m | as above | as above | room allows 3 m |
-| D | `single_step`, then `double_step` | 1, 2, 3 m | 3 to 5 each | 1 or 2 | before any walking |
-| E | `walking`, one lap | 1, 2, 3 m | 3 laps per radius | marks + 1 | after D is clean |
-| F | `ball_drop`, mount or object | 1 m | 5 per mount | 1 | when comparing mounts or enclosures |
-
-Shuffle the radius order for each block and write it on the session sheet before starting (for example 2, 0.5, 1). Going near to far every time mixes distance with fatigue, drift, and whatever changes in the building over the hour.
+| Block | Excitation | Radii | Repetitions | When |
+|---|---|---|---|---|
+| C | `stomp`, 10 per trial | 1, 2 m | 3 per radius, in one bare and one enclosed block | as a human-impact check of the comparison |
+| A3 | `drop_stand` | 3 m | 5 per block | room allows 3 m |
+| B | `drop_stand`, double | 0.5, 1, 2 m | 5 per radius | to check that two drops count as two |
+| D | `single_step`, then `double_step` | 1, 2, 3 m | 3 to 5 each | before any walking |
+| E | `walking`, one lap | 1, 2, 3 m | 3 laps per radius | after D is clean |
+| F | `drop_stand`, other mounts (tape, putty, loose) | 1 m | 5 per mount | when comparing mounts |
 
 ## 2. Equipment
 
 - [ ] XIAO ESP32-C6 with the VPU breakout, flashed with `firmware/vpu_pcm_stream`
 - [ ] The same USB-C data cable every session, and the laptop with the repo, charged or plugged in for the whole session
-- [ ] Mounting kit: the weight (weighed on a kitchen scale), a rigid flat spacer (plywood, acrylic or a hardcover book), painter's tape, putty or wax, and the object enclosures being tested (for example the vase base)
+- [ ] Mounting kit: the weight (weighed on a kitchen scale), a rigid flat spacer (plywood, acrylic or a hardcover book), painter's tape, putty or wax, and the enclosure being compared (for example the vase base)
 - [ ] Tape measure, a string or cord to swing circles, painter's tape and a marker for the floor marks
-- [ ] Ball for drops (write down its type and mass) and a ruler or marked stick for the drop height; the drop stand if printed
+- [ ] The drop stand and its ball (write down the ball's type and mass and the release height); a ruler to check the height
 - [ ] Two identical balls for double drops
 - [ ] Phone on a tripod or a stack of books for video of the feet and impact point, and a metronome app on a second phone or earbuds
 - [ ] Notebook and the printed session sheet (section 14)
@@ -164,25 +177,25 @@ Use the port from the list. On another laptop, set up the repo's environment fir
 | Baseline noise | Fills itself with the newest noise trial. Leave it. |
 | Operator | Who runs the laptop. |
 | Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. When they are unchanged from the last saved trial, Record stops once and outlines Notes in orange; edit them, or press Record again to keep them. |
-| ID prefix | One per condition, see below. Required: it starts blank, and Record refuses until it is filled. |
+| ID prefix | One per block, see below. Required: it starts blank, and Record refuses until it is filled. |
 | Trial ID | Fills itself in. Do not type one. |
 
 ### Naming
 
-The trial ID is `<prefix>_<radius>m_<nn>` (0.5 m is written `0p5m`); noise trials are `<prefix>_noise_<nn>`. Change the prefix whenever the floor, mount or excitation family changes, so conditions never share a name:
+The trial ID is `<prefix>_<radius>m_<nn>` (0.5 m is written `0p5m`); noise trials are `<prefix>_noise_<nn>`. Use one prefix per block, `<floor>_<condition>_<block number>`, so every block's trials and its noise baseline share a name, and no two blocks do:
 
 | Prefix | Example IDs |
 |---|---|
-| `tile_bare_drop` | `tile_bare_drop_noise_01`, `tile_bare_drop_1m_03` |
-| `tile_bare_stomp` | `tile_bare_stomp_2m_01` |
-| `tile_vase_drop` | `tile_vase_drop_noise_01`, `tile_vase_drop_0p5m_02` |
-| `wood_bare_walk` | `wood_bare_walk_3m_01` |
+| `tile_bare_1` | `tile_bare_1_noise_01`, `tile_bare_1_1m_03` |
+| `tile_vase_1` | `tile_vase_1_noise_01`, `tile_vase_1_0p5m_02` |
+| `tile_bare_2` | `tile_bare_2_2m_05` |
+| `tile_vase_stomp` | `tile_vase_stomp_2m_01` (extension C) |
 
 **Results tab:** keep the Baseline dropdown on "automatic". Choosing a noise trial there sends the outputs and your tags to a separate subfolder.
 
 ## 8. Noise baseline
 
-Every trial is measured in dB above a noise-only recording. Record one at the start of every block, and again after any change: mount, object, sensor position, charger, or anything that starts running in the building.
+Every trial is measured in dB above a noise-only recording. Record one at the start of every block (in the main plan, every bare and every enclosed block), and again after any change: mount, enclosure, sensor position, charger, or anything that starts running in the building.
 
 1. Set the prefix for the coming block, Excitation to noise only, and the Mount as it will be for the block.
 2. Everyone still and silent; phones face down and not on the floor.
@@ -192,25 +205,33 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 
 ## 9. Trial blocks
 
-### A. Single ball drop
+### Switching between bare and enclosed
 
-- A second person drops the ball onto the radius's P point from the fixed height (for example 50 cm, ball bottom to floor). Release from rest; do not throw.
-- Catch the ball after its first bounce. Every bounce is a real impact: an uncaught bounce turns 1 made into 2 or 3 found.
-- The dropper kneels in the same place and posture every time and holds still until Stop. A person shifting weight 0.5 m from the sensor makes impacts too.
-- Use the drop stand instead of a hand release if it is available; set Excitation to `drop_stand`.
-- Impacts made = 1. Five trials per radius, each its own recording, in the shuffled radius order.
+1. Stop recording. Note the time on the session sheet.
+2. Take the sensor out of (or put it into) the enclosure without lifting the tape cross or moving S. If the enclosure is placed over the sensor, mark its outline on the floor the first time and put it back on that outline every time.
+3. Set Mount and Notes for the new condition (for example Notes `sensor inside vase base enclosure, mass 450 g`), and the new block's prefix.
+4. Check that nothing rocks: press the enclosure's edges, or the weight's corners for the bare sensor.
+5. Record the block's 60 s noise baseline before its first drop.
 
-### B. Double ball drop
+### A. Drop stand (main plan)
+
+- Set the stand over the radius's P point with the release height fixed (for example 50 cm, ball bottom to floor). Release from rest.
+- Catch the ball after its first bounce. Every bounce is a real impact: an uncaught bounce turns 1 made into 2 or 3 found, and adds a second impact to the levels.
+- The catcher kneels in the same place and posture every time and holds still until Stop. A person shifting weight 0.5 m from the sensor makes impacts too.
+- Excitation `drop_stand`, impacts made = 1. Five trials per radius per block, each its own recording, in the block's shuffled radius order.
+- If the stand is not available, drop by hand from the marked height and write "hand release" in Notes; keep the same release in both conditions.
+
+### B. Double drop (extension)
 
 - Two drops on the same point about 2 s apart, using two identical balls so the dropper does not need to re-lift one. Catch each after its first bounce. Impacts made = 2.
 - This checks that one drop is not split into two events, and that two drops are counted as two. Closer pairs are not part of the procedure: one person cannot catch the first bounce and release the second ball within 0.3 s. The 0.25 s merge is detector logic, tested on synthetic impacts in `tests/test_det_v1_regression.py`.
 - Five trials per radius.
 
-### C. Stomps
+### C. Stomps (extension)
 
 - The walker stands with both feet on the P mark and stomps with the same foot, 10 times, about 1 s apart, then freezes. Impacts made = 10.
 - Keep the stomp force as even as possible. At 2 m and beyond, the softest stomps are the ones that fall below the threshold.
-- Three trials per radius. Write the footwear in Notes.
+- Three trials per radius, in one bare and one enclosed block. Write the footwear in Notes. Stomps vary in force from one to the next, so they check the comparison with a human impact but do not replace the drop stand.
 
 ### D. Single and double step (extension)
 
@@ -229,9 +250,9 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 
 **Footwear is a condition.** Hard soles on tile give a sharp click above 100 Hz that det-v1 is built for. Socks and soft soles may leave only a low thump below 100 Hz, which det-v1 does not see. Run them as separate blocks with their own prefixes.
 
-### F. Mount and object comparison (extension)
+### F. Other mounts (extension)
 
-- At 1 m with single ball drops, five trials for each mount or object (bare with weight, tape only, putty, loose, inside the vase base enclosure).
+- At 1 m with the drop stand, five trials for each other mount (tape only, putty, loose), alternating with the main bare mount as in the main plan.
 - New prefix and new 60 s noise baseline after every change. Do not touch the board between trials within a mount.
 
 ## 10. Per-trial routine
@@ -307,13 +328,14 @@ One per session, filled in as you go.
 | Running and could not be turned off | |
 | Repo commit, tests passed, `V` self-test result | |
 | Mount, mass on top, spacer, object | |
-| Ball type and mass, drop height, dropper | |
+| Drop stand, ball type and mass, release height, catcher | |
+| Block order, prefixes and switch times | |
 | Walker, footwear, cadence | |
 | Shuffled radius order per block | |
 | Noise baselines: ID, false alarms per minute, causes | |
 | Invalid trials: ID and reason | |
 | Photo and video file names | |
-| Core check passed (Y/N, and what failed) | |
+| Check before reporting passed (Y/N, and what failed) | |
 | Day 1 or day 2 of this floor | |
 | Anomalies | |
 
@@ -322,12 +344,14 @@ One per session, filled in as you go.
 Each rule above traces to something that happened in the first sessions.
 
 - **10/14:** firm steps and stomps mixed in one condition made the 2 m results unreadable. One step style per block.
-- **10/15:** Vakakis asked for a few reliable measurements over many, repeated on different days. Core plan first, second-day repeat, extensions only after the core check.
+- **10/15:** Vakakis asked for a few reliable measurements over many, repeated on different days. One main plan, a second-day repeat, extensions after it.
 - **10/18:** socks or soft soles plus a different mount left the steps 35 to 40 dB weaker above 100 Hz than on 10/14, so det-v1 saw almost none. Change one thing at a time; footwear is its own condition.
 - **10/18:** a trial recorded before its noise baseline was measured against itself, and a 10 s baseline missed a source that started later. Baseline first, 60 s, renewed after changes.
 - **10/18 evening:** the operator's click on Record was counted as an impact. Wait 3 s after Record; keep the laptop off the floor.
 - **10/18 evening:** notes carried over from the previous trial ("2 m" on 1 m trials) and the default prefix named stomps as footsteps. Check Notes (Record now stops once on unchanged Notes) and set the prefix per condition (it now starts blank and is required).
 - **10/18 evening:** a stomp whose waveform crossed the line was missed at 13.1 dB on the RMS. The threshold is on the RMS; the plot now shows near misses.
+- **10/18 evening:** the bare and enclosed trials were run back to back with hand stomps, about every 0.85 s for bare and every 0.6 s enclosed, and no noise baseline was recorded with the enclosure. The enclosed sensor read about 7 to 10 dB lower, but the excitation and the time of each condition differed, so the difference could not be put on the enclosure. Drop stand, alternating blocks, a baseline per block.
+- **10/19:** the sponsor already has step-count data. The question for this project is what the enclosure does to the signal, so the comparison is the main plan and the counts are a proof of concept.
 - **10/18 evening:** the session crossed midnight, so its later trials went to a new date folder. Record a new baseline after midnight.
 
 Detection settings and the tools referenced here: `everyday_sensing.impacts` (det-v1), `tools/dashboard/vpu_pcm_dashboard.py`, `scripts/plot_trials.py`, and `data/controlled/` for published trials.
