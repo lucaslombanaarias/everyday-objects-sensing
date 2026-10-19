@@ -138,7 +138,7 @@ Use the port from the list. On another laptop, set up the repo's environment fir
 | Sensor radius | Impact point (or circle) to sensor centre, in m. |
 | Drop height, Tip | Drops only: height in cm, and the ball (type, mass). |
 | Floor | Material and room. |
-| Mount | See section 6. Required. It defaults to `tape` at launch, so set it first. |
+| Mount | See section 6. Required. It starts blank at launch; Record refuses until one is picked, then it stays for the following trials. |
 | Baseline noise | Fills itself with the newest noise trial. Leave it. |
 | Operator | Who runs the laptop. |
 | Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. |

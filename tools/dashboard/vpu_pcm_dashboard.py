@@ -396,8 +396,11 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.made = QtWidgets.QSpinBox(minimum=0, maximum=999, value=0,
                                        specialValueText="required")
         self.floor_edit = QtWidgets.QLineEdit(placeholderText="e.g. tile")
-        self.mount_box = QtWidgets.QComboBox()
+        # Mount starts blank, like Impacts made: Record refuses until one is picked, so a
+        # trial is never saved with a default mount nobody chose.
+        self.mount_box = QtWidgets.QComboBox(placeholderText="required")
         self.mount_box.addItems(MOUNTS)
+        self.mount_box.setCurrentIndex(-1)
         self.block_box = QtWidgets.QComboBox(editable=True)
         self.block_box.lineEdit().setPlaceholderText("noise-only trial of this block")
         self.operator_edit = QtWidgets.QLineEdit()
@@ -684,7 +687,8 @@ class PcmDashboard(QtWidgets.QMainWindow):
             for flag, edit in [("--excitation-point", self.point_edit), ("--tip", self.tip_edit)]:
                 if edit.isEnabled() and edit.text().strip():
                     argv += [flag, edit.text().strip()]
-        argv += ["--mount-method", self.mount_box.currentText()]
+        if self.mount_box.currentText():
+            argv += ["--mount-method", self.mount_box.currentText()]
         if self.block_box.currentText().strip():
             argv += ["--baseline-noise-id", self.block_box.currentText().strip()]
         for flag, edit in [("--floor-material", self.floor_edit),
