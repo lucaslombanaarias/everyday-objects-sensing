@@ -181,7 +181,7 @@ Every trial is measured in dB above a noise-only recording. Record one at the st
 ### B. Double ball drop
 
 - Two drops on the same point about 2 s apart, using two identical balls so the dropper does not need to re-lift one. Catch each after its first bounce. Impacts made = 2.
-- This checks that one drop is not split into two events. To test the 0.25 s merge itself, add a few pairs dropped 0.3 to 0.5 s apart (should give 2) and note them as close pairs in Notes.
+- This checks that one drop is not split into two events, and that two drops are counted as two. Closer pairs are not part of the procedure: one person cannot catch the first bounce and release the second ball within 0.3 s. The 0.25 s merge is detector logic, tested on synthetic impacts in `tests/test_det_v1_regression.py`.
 - Five trials per radius.
 
 ### C. Stomps
