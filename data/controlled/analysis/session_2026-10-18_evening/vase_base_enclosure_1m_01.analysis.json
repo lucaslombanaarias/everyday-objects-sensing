@@ -1,6 +1,6 @@
 {
   "trial_id": "vase_base_enclosure_1m_01",
-  "analyzed_at": "2026-10-19T00:49:01-05:00",
+  "analyzed_at": "2026-10-19T11:05:04-05:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,
@@ -25,8 +25,8 @@
   "true_impact": 0,
   "walk_in_out": 0,
   "other_noise": 0,
-  "unknown": 0,
-  "unreviewed": 9,
+  "unknown": 1,
+  "unreviewed": 8,
   "baseline_used": "fs_noise_01",
   "baseline_recorded": "fs_noise_01",
   "baseline_mismatch": false,
@@ -110,7 +110,7 @@
       "timestamp": "2026-10-19T00:25:18.787-05:00",
       "peak_db": 22.79,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "unknown"
     }
   ]
 }

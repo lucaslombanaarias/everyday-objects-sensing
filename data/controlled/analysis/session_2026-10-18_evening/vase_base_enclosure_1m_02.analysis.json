@@ -1,6 +1,6 @@
 {
   "trial_id": "vase_base_enclosure_1m_02",
-  "analyzed_at": "2026-10-19T00:49:01-05:00",
+  "analyzed_at": "2026-10-19T11:05:04-05:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,
@@ -24,9 +24,9 @@
   "edge_events": 0,
   "true_impact": 0,
   "walk_in_out": 0,
-  "other_noise": 0,
-  "unknown": 0,
-  "unreviewed": 13,
+  "other_noise": 4,
+  "unknown": 1,
+  "unreviewed": 8,
   "baseline_used": "fs_noise_01",
   "baseline_recorded": "fs_noise_01",
   "baseline_mismatch": false,
@@ -78,7 +78,7 @@
       "timestamp": "2026-10-19T00:25:43.698-05:00",
       "peak_db": 14.19,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "unknown"
     },
     {
       "event": 6,
@@ -94,7 +94,7 @@
       "timestamp": "2026-10-19T00:25:44.453-05:00",
       "peak_db": 18.16,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 8,
@@ -110,7 +110,7 @@
       "timestamp": "2026-10-19T00:25:45.025-05:00",
       "peak_db": 19.01,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 10,
@@ -126,7 +126,7 @@
       "timestamp": "2026-10-19T00:25:45.673-05:00",
       "peak_db": 15.67,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 12,
@@ -142,7 +142,7 @@
       "timestamp": "2026-10-19T00:25:46.271-05:00",
       "peak_db": 15.5,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     }
   ]
 }

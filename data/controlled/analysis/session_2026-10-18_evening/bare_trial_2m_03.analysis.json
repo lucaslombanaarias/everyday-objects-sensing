@@ -1,6 +1,6 @@
 {
   "trial_id": "bare_trial_2m_03",
-  "analyzed_at": "2026-10-19T00:49:01-05:00",
+  "analyzed_at": "2026-10-19T11:05:04-05:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,

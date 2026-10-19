@@ -78,16 +78,17 @@ def plot_trial(t: dict, events: list[dict], folder: Path, out: Path) -> Path:
     def at(db):
         return tr["baseline"] * 10 ** (db / 20)
 
-    for kind, face in (("event", EVENT), ("edge event", EDGE), ("tagged extra", MUTED)):
+    # Every event is labelled with its number only; the marker shows what it is, and the
+    # legend names it, so close events do not collide.
+    for kind, face, marker in KINDS:
         chosen = [e for e in events if _kind(e) == kind]
         if not chosen:
             continue
         ys = [at(float(e["peak_db"])) for e in chosen]
-        ax.scatter([float(e["t_s"]) for e in chosen], ys, s=60, color=face, zorder=4,
-                   edgecolors=SURFACE, linewidths=1.5, label=kind)
+        ax.scatter([float(e["t_s"]) for e in chosen], ys, s=60, color=face, marker=marker,
+                   zorder=4, edgecolors=SURFACE, linewidths=1.5, label=kind)
         for e, y in zip(chosen, ys, strict=True):
-            text = e["event"] if kind != "tagged extra" else f"{e['event']}: {e['annotation']}"
-            ax.annotate(text, (float(e["t_s"]), y), textcoords="offset points",
+            ax.annotate(e["event"], (float(e["t_s"]), y), textcoords="offset points",
                         xytext=(0, 7), ha="center", fontsize=8, color=TEXT_2)
     merged = impacts.merged_peaks(tr, [float(e["t_s"]) for e in events])
     if merged:
@@ -95,9 +96,6 @@ def plot_trial(t: dict, events: list[dict], folder: Path, out: Path) -> Path:
         ax.scatter([m for m, _ in merged], ys, s=55, marker="s", facecolors="none",
                    edgecolors=TEXT_2, linewidths=1.3, zorder=4,
                    label=f"merged into a stronger event (< {impacts.MIN_GAP_S:g} s)")
-        for (when, _db), y in zip(merged, ys, strict=True):
-            ax.annotate("merged", (when, y), textcoords="offset points", xytext=(0, 7),
-                        ha="center", fontsize=8, color=TEXT_2)
     if skipped:
         ys = [at(db) for _, db in skipped]
         ax.scatter([s for s, _ in skipped], ys, s=60, facecolors="none", edgecolors=TEXT_2,
@@ -130,9 +128,15 @@ def plot_trial(t: dict, events: list[dict], folder: Path, out: Path) -> Path:
     return path
 
 
+KINDS = (("event", EVENT, "o"), ("edge event", EDGE, "o"),
+         ("tagged other_noise", MUTED, "o"), ("tagged walk_in_out", MUTED, "^"),
+         ("tagged unknown", MUTED, "D"))
+"""(legend label, colour, marker) for each kind of event."""
+
+
 def _kind(event: dict) -> str:
     if event["annotation"] not in ("unreviewed", "true_impact"):
-        return "tagged extra"
+        return f"tagged {event['annotation']}"
     return "edge event" if event["flag"] == "edge" else "event"
 
 
