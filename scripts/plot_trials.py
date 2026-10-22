@@ -19,6 +19,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
+from matplotlib.ticker import MaxNLocator  # noqa: E402
 
 from everyday_sensing import impacts  # noqa: E402
 
@@ -31,8 +32,6 @@ WAVE = "#2a78d6"
 RMS = "#eb6834"
 EVENT = "#1baf7a"
 EDGE = "#eda100"
-CONDITION_COLORS = ("#2a78d6", "#eb6834")
-"""Categorical slots 1 and 2, in fixed order: the first condition is always blue."""
 
 plt.rcParams.update({
     "figure.facecolor": SURFACE, "axes.facecolor": SURFACE, "savefig.facecolor": SURFACE,
@@ -141,44 +140,60 @@ def _kind(event: dict) -> str:
 
 
 def plot_summary(rows: list[dict], out: Path) -> Path:
-    """Events found per trial against impacts made, grouped by condition and radius."""
+    """Events found per trial against impacts made: one panel per condition (trial ID
+    prefix), one row per excitation and impacts made, so conditions with the same
+    excitation sit side by side on a shared scale, each trial a bar grouped by radius.
+    Panels are in prefix order, so <floor>_bare_* sits next to <floor>_enclosed_*."""
     trials = [r for r in rows if r["impacts_made"]]
-    conditions = list(dict.fromkeys(r["trial_id"].rsplit("_", 2)[0] for r in trials))
-    radii = sorted({r["distance_m"] for r in trials})
-    fig, ax = plt.subplots(figsize=(9, 4.2), dpi=150)
-    width, x0, ticks = 0.8, 0.0, []
-    for radius in radii:
-        start = x0
-        for c, cond in enumerate(conditions[:2]):
-            group = [r for r in trials
-                     if r["distance_m"] == radius and r["trial_id"].startswith(cond + "_")]
-            for r in group:
-                found = r["impacts_found"]
-                explained = sum(r[tag] for tag in ("walk_in_out", "other_noise"))
-                ax.bar(x0, found, width=width, color=CONDITION_COLORS[c],
-                       edgecolor=SURFACE, linewidth=2,
-                       label=cond.replace("_", " ") if (radius == radii[0] and r is group[0])
-                       else None)
-                if explained:
-                    ax.bar(x0, explained, bottom=found - explained, width=width, color="none",
-                           edgecolor=SURFACE, hatch="////", linewidth=0)
-                text = f"{found}" + (f"\n({explained} tagged)" if explained else "")
-                ax.annotate(text, (x0, found), textcoords="offset points", xytext=(0, 3),
-                            ha="center", va="bottom", fontsize=8, color=TEXT_2)
-                x0 += 1
-            x0 += 0.6
-        ticks.append(((start + x0 - 1.6) / 2, f"{radius:g} m"))
-        x0 += 0.8
-    made = trials[0]["impacts_made"]
-    ax.axhline(made, color=TEXT_2, linestyle=(0, (5, 4)), linewidth=1.2,
-               label=f"impacts made ({made})")
-    ax.set_xticks([p for p, _ in ticks], [lbl for _, lbl in ticks])
-    ax.set_xlabel("radius (impact point to sensor), 3 trials per condition")
-    ax.set_ylabel("events found (det-v1)")
-    ax.grid(axis="x", visible=False)
-    ax.set_ylim(0, max(r["impacts_found"] for r in trials) * 1.25)
-    ax.set_title("Events found per trial against impacts made", loc="left", fontsize=12)
-    ax.legend(loc="upper left", bbox_to_anchor=(1.01, 1.0), frameon=False, fontsize=9)
+    conditions = sorted({r["trial_id"].rsplit("_", 2)[0] for r in trials})
+    by_cond = {c: [r for r in trials if r["trial_id"].startswith(c + "_")] for c in conditions}
+    row_keys = list(dict.fromkeys((g[0]["excitation"], g[0]["impacts_made"])
+                                  for g in by_cond.values()))
+    grid = [[c for c in conditions
+             if (by_cond[c][0]["excitation"], by_cond[c][0]["impacts_made"]) == key]
+            for key in row_keys]
+    ncols = max(len(line) for line in grid)
+    fig, axes = plt.subplots(len(grid), ncols, figsize=(2.7 * ncols + 0.8, 2.9 * len(grid)),
+                             dpi=150, squeeze=False)
+    for (excitation, made), line, row_axes in zip(row_keys, grid, axes, strict=True):
+        group = [r for c in line for r in by_cond[c]]
+        radii = sorted({r["distance_m"] for r in group})
+        slots = {d: max(sum(r["distance_m"] == d for r in by_cond[c]) for c in line)
+                 for d in radii}
+        top = max(made, max(r["impacts_found"] for r in group)) * 1.3
+        for i, ax in enumerate(row_axes):
+            if i >= len(line):
+                ax.set_visible(False)
+                continue
+            x0, ticks = 0.0, []
+            for radius in radii:
+                at_radius = [r for r in by_cond[line[i]] if r["distance_m"] == radius]
+                for k, r in enumerate(at_radius):
+                    found = r["impacts_found"]
+                    explained = sum(r[tag] for tag in ("walk_in_out", "other_noise"))
+                    ax.bar(x0 + k, found, width=0.8, color=WAVE, edgecolor=SURFACE, linewidth=2)
+                    if explained:
+                        ax.bar(x0 + k, explained, bottom=found - explained, width=0.8,
+                               color="none", edgecolor=SURFACE, hatch="////", linewidth=0)
+                    text = f"{found}" + (f"\n({explained} tagged)" if explained else "")
+                    ax.annotate(text, (x0 + k, found), textcoords="offset points",
+                                xytext=(0, 2), ha="center", va="bottom", fontsize=7,
+                                color=TEXT_2)
+                ticks.append((x0 + (slots[radius] - 1) / 2, f"{radius:g} m"))
+                x0 += slots[radius] + 0.8
+            ax.axhline(made, color=TEXT_2, linestyle=(0, (5, 4)), linewidth=1.2)
+            ax.set_xticks([p for p, _ in ticks], [lbl for _, lbl in ticks])
+            ax.set_xlim(-0.7, x0 - 1.1)
+            ax.set_ylim(0, top)
+            ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+            ax.grid(axis="x", visible=False)
+            ax.set_title(line[i].replace("_", " "), loc="left", fontsize=9, color=TEXT)
+            if i == 0:
+                ax.set_ylabel(f"{excitation}: found\n(dashed: {made} made)", fontsize=8)
+            else:
+                ax.tick_params(labelleft=False)
+    fig.suptitle("Events found per trial against impacts made (det-v1), by radius",
+                 x=0.01, ha="left", fontsize=12, color=TEXT)
     fig.tight_layout()
     path = out / "summary_found_vs_made.png"
     fig.savefig(path, bbox_inches="tight")

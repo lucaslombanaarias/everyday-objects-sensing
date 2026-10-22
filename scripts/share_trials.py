@@ -42,6 +42,21 @@ def find_day(arg: str | None) -> Path:
     return DEFAULT_OUT_DIR / (arg or days[-1])
 
 
+def published_under_other_names(sidecars: list[Path], dst: Path) -> list[tuple[str, str]]:
+    """(local name, published name) of each trial already in dst under another trial ID,
+    matched by start_time, as after the published copies were renamed."""
+    published = {}
+    for p in dst.glob("*.json"):
+        m = json.loads(p.read_text(encoding="utf-8"))
+        published[m.get("start_time")] = m.get("trial_id")
+    pairs = []
+    for p in sidecars:
+        start = json.loads(p.read_text(encoding="utf-8")).get("start_time")
+        if published.get(start, p.stem) != p.stem:
+            pairs.append((p.stem, published[start]))
+    return pairs
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("day", nargs="?",
@@ -60,6 +75,13 @@ def main(argv=None):
 
     git("pull")
     dst = CONTROLLED / "raw" / date
+    renamed = published_under_other_names(sidecars, dst)
+    if renamed:
+        raise SystemExit(
+            f"{len(renamed)} of these trials are already published under other names, e.g. "
+            f"{renamed[0][0]} as {renamed[0][1]}. This folder has the names from before they "
+            "were renamed, so nothing was copied. Move it out of data/raw (keep it as a "
+            "backup), or share another folder.")
     dst.mkdir(parents=True, exist_ok=True)
     for f in trials:
         shutil.copy2(f, dst / f.name)
