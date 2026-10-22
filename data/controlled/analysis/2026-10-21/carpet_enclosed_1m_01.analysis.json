@@ -1,0 +1,124 @@
+{
+  "trial_id": "carpet_enclosed_1m_01",
+  "analyzed_at": "2026-10-21T20:59:40-05:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": "walking",
+  "excitation_point_id": null,
+  "distance_m": 1.0,
+  "mount": "preloaded",
+  "impacts_made": 10,
+  "impacts_found": 10,
+  "difference": 0,
+  "edge_events": 0,
+  "true_impact": 0,
+  "walk_in_out": 0,
+  "other_noise": 0,
+  "unknown": 0,
+  "unreviewed": 10,
+  "baseline_used": "noise_noise_02",
+  "baseline_recorded": "noise_noise_02",
+  "baseline_mismatch": false,
+  "duration_s": 9.344,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 2.3257393296678646,
+    "100-500 Hz": 1.3496565619832852,
+    "500-2000 Hz": 1.145704592226893,
+    "2-8 kHz": 1.261467460232336
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 2.678,
+      "timestamp": "2026-10-21T20:57:12.016-05:00",
+      "peak_db": 32.34,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 2,
+      "t_s": 3.152,
+      "timestamp": "2026-10-21T20:57:12.490-05:00",
+      "peak_db": 37.94,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 3,
+      "t_s": 3.635,
+      "timestamp": "2026-10-21T20:57:12.973-05:00",
+      "peak_db": 23.5,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 4,
+      "t_s": 4.15,
+      "timestamp": "2026-10-21T20:57:13.488-05:00",
+      "peak_db": 38.54,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 5,
+      "t_s": 4.611,
+      "timestamp": "2026-10-21T20:57:13.949-05:00",
+      "peak_db": 33.83,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 6,
+      "t_s": 5.119,
+      "timestamp": "2026-10-21T20:57:14.457-05:00",
+      "peak_db": 28.73,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 7,
+      "t_s": 5.577,
+      "timestamp": "2026-10-21T20:57:14.915-05:00",
+      "peak_db": 29.47,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 8,
+      "t_s": 6.124,
+      "timestamp": "2026-10-21T20:57:15.462-05:00",
+      "peak_db": 17.04,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 9,
+      "t_s": 6.593,
+      "timestamp": "2026-10-21T20:57:15.931-05:00",
+      "peak_db": 38.25,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 10,
+      "t_s": 7.09,
+      "timestamp": "2026-10-21T20:57:16.428-05:00",
+      "peak_db": 27.95,
+      "flag": "",
+      "annotation": "unreviewed"
+    }
+  ]
+}
