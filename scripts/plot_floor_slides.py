@@ -9,6 +9,8 @@ Run as ``python scripts/plot_floor_slides.py``. Writes 300 dpi PNGs to docs/figu
 - floor_level_vs_distance.png: the 5 ms detection level against radius, per condition.
 - floor_detection.png: share of steps or stomps det-v1 finds, per condition and radius.
 
+--walking keeps only the walking trials (wood and carpet, 2026-10-21) in every figure.
+
 dashboard_window.png and dashboard_results_tab.png, next to them, are screenshots of the PCM
 dashboard on wood_enclosed_walk_1m_03 (the live view on the left is the synthetic SIM stream).
 
@@ -41,6 +43,8 @@ OUT_DIR = REPO / "docs" / "figures"
 FONT_PT = 16
 SHOW_TITLES = True
 """False (--no-title) leaves the takeaway titles off, for slides that carry them."""
+WALKING = False
+"""True (--walking) keeps only the walking trials (2026-10-21), for the walking slides."""
 COLORS = cc.COLORS
 MUTED = "#8a8985"
 NEUTRAL = "#f1f0ec"
@@ -90,6 +94,8 @@ def load():
 
 def plot_effect(rows, path):
     """Heatmap of enclosed minus bare per (floor, excitation, radius) and level."""
+    if WALKING:
+        rows = [r for r in rows if r["excitation"] == "walk"]
     keys = []
     order = {"tile": 0, "wood": 1, "carpet": 2}
     for r in rows:
@@ -139,8 +145,10 @@ def plot_spectra(groups, path):
     g, noises, fs = groups["2026-10-21"]
     n = int(round(cc.SPECTRUM_WINDOW_S * fs))
     freqs = np.fft.rfftfreq(n, 1 / fs)
-    cases = [(("wood", "walk", 1.0), "Walking, 1 m"), (("wood", "drop4in", 2.0), "4 in drop, 2 m")]
-    fig = Figure(figsize=(13, 5.6), layout="constrained")
+    cases = ([(("wood", "walk", r), f"Walking, {r:g} m") for r in (1.0, 2.0, 3.0)] if WALKING
+             else [(("wood", "walk", 1.0), "Walking, 1 m"), (("wood", "drop4in", 2.0),
+                                                             "4 in drop, 2 m")])
+    fig = Figure(figsize=(6.5 * len(cases), 5.6), layout="constrained")
     axes = fig.subplots(1, len(cases), sharey=False)
     for ax, ((floor, kind, radius), label) in zip(axes, cases, strict=True):
         ax.axvspan(*RESONANCE_BAND_HZ, color=GRID_COLOR, alpha=0.8, zorder=0)
@@ -166,20 +174,24 @@ def plot_spectra(groups, path):
         ax.set_xscale("log")
         ax.set_xlim(cc.F_MIN, cc.F_MAX)
         ax.set_xlabel("frequency (Hz)")
-        ax.set_title(f"Wood, {label.lower()} ({len(grp['psds'])} impacts per condition)",
+        ax.set_title(f"Wood, {label.lower()} ({len(grp['psds'])} steps per condition)"
+                     if WALKING else
+                     f"Wood, {label.lower()} ({len(grp['psds'])} impacts per condition)",
                      loc="left")
         _style(ax)
     axes[0].set_ylabel("power spectral density\n(dB re 1 count²/Hz)")
     _title(fig, "On wood, the enclosure boosts 3–6 kHz, around the sensor's resonance",
-           "Averaged spectrum of each impact (100 ms Hann window), 2026-10-21. Dashed: the noise "
-           "baseline. Shaded: 4–5 kHz resonance from the sensor datasheet.")
+           f"Averaged spectrum of each {'step' if WALKING else 'impact'} (100 ms Hann window), "
+           "2026-10-21. Dashed: the noise baseline. Shaded: 4–5 kHz resonance from the sensor "
+           "datasheet.")
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.15)
 
 
 def plot_level(groups, path):
-    cases = [("tile", "stomp"), ("wood", "walk"), ("wood", "drop4in"), ("carpet", "walk"),
-             ("carpet", "drop4in")]
-    fig = Figure(figsize=(16, 5.2), layout="constrained")
+    cases = ([("wood", "walk"), ("carpet", "walk")] if WALKING else
+             [("tile", "stomp"), ("wood", "walk"), ("wood", "drop4in"), ("carpet", "walk"),
+              ("carpet", "drop4in")])
+    fig = Figure(figsize=(3.3 * len(cases) + 1.2, 5.2), layout="constrained")
     axes = fig.subplots(1, len(cases))
     for ax, (floor, kind) in zip(axes, cases, strict=True):
         for session in SESSIONS:
@@ -203,15 +215,22 @@ def plot_level(groups, path):
         _style(ax)
     axes[0].set_ylabel("impact level\n(dB re 1 count, 5 ms >100 Hz)")
     axes[0].legend(frameon=False, loc="lower left")
-    _title(fig, "Overall level falls with distance; the enclosure moves it a few dB, more on tile",
-           "Lines: median over impacts. Dots: each trial's median. Tile: hand stomps, 10/18; "
-           "others: 2026-10-21.")
+    if WALKING:
+        _title(fig, "Step level falls with distance; the enclosure moves it a few dB",
+               "Lines: median over steps. Dots: each trial's median. Walking in place, "
+               "2026-10-21.")
+    else:
+        _title(fig, "Overall level falls with distance; the enclosure moves it a few dB, more "
+                    "on tile",
+               "Lines: median over impacts. Dots: each trial's median. Tile: hand stomps, "
+               "10/18; others: 2026-10-21.")
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.15)
 
 
 def plot_detection(counts, path):
-    cases = [("tile", "stomp"), ("wood", "walk"), ("carpet", "walk")]
-    fig = Figure(figsize=(13, 5.2), layout="constrained")
+    cases = ([("wood", "walk"), ("carpet", "walk")] if WALKING else
+             [("tile", "stomp"), ("wood", "walk"), ("carpet", "walk")])
+    fig = Figure(figsize=(4.3 * len(cases) + 0.8, 5.2), layout="constrained")
     axes = fig.subplots(1, len(cases), sharey=True)
     for ax, (floor, kind) in zip(axes, cases, strict=True):
         radii = []
@@ -241,21 +260,29 @@ def plot_detection(counts, path):
         ax.grid(axis="x", visible=False)
     axes[0].set_ylabel("events found / impacts made")
     axes[-1].legend(frameon=False, loc="upper right", ncols=2)
-    _title(fig, "det-v1 finds nearly every step and stomp on wood and tile; "
-                "carpet loses steps at 3 m",
-           "Events found per impact made, all trials pooled (3 per bar). Events tagged as noise "
-           "are left out. Above 100%: extra events (double counts, bounces).")
+    if WALKING:
+        _title(fig, "det-v1 finds every step on wood; on carpet it misses quiet steps at 2–3 m",
+               "Events found per step made, 3 trials per bar. Above 100%: extra events (clicks, "
+               "one 11-step trial).")
+    else:
+        _title(fig, "det-v1 finds nearly every step and stomp on wood and tile; "
+                    "carpet loses steps at 3 m",
+               "Events found per impact made, all trials pooled (3 per bar). Events tagged as "
+               "noise are left out. Above 100%: extra events (double counts, bounces).")
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.15)
 
 
 def main(argv=None):
-    global SHOW_TITLES
+    global SHOW_TITLES, WALKING
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--out", type=Path, default=OUT_DIR, help="default: docs/figures/")
     parser.add_argument("--no-title", action="store_true",
                         help="leave the takeaway titles off (the slide carries them)")
+    parser.add_argument("--walking", action="store_true",
+                        help="only the walking trials (for slides on the walking experiment)")
     args = parser.parse_args(argv)
     SHOW_TITLES = not args.no_title
+    WALKING = args.walking
     args.out.mkdir(parents=True, exist_ok=True)
     groups, rows, counts = load()
     for name, fn, arg in (("floor_enclosure_effect.png", plot_effect, rows),
