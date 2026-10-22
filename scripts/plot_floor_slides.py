@@ -7,7 +7,9 @@ Run as ``python scripts/plot_floor_slides.py``. Writes 300 dpi PNGs to docs/figu
 - floor_spectra_wood.png: averaged impact spectra on wood, bare against enclosed, with
   the sensor's datasheet resonance band.
 - floor_level_vs_distance.png: the 5 ms detection level against radius, per condition.
-- floor_detection.png: share of steps or stomps det-v1 finds, per condition and radius.
+- floor_detection.png: share of steps or stomps det-v1 finds, per condition and radius. With
+  --walking, the share of steps that show up in the signal instead, from the manual review in
+  data/controlled/analysis/2026-10-21/walking_steps_review.csv.
 
 --walking keeps only the walking trials (wood and carpet, 2026-10-21) in every figure.
 
@@ -272,6 +274,49 @@ def plot_detection(counts, path):
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.15)
 
 
+REVIEW = REPO / "data" / "controlled" / "analysis" / "2026-10-21" / "walking_steps_review.csv"
+
+
+def plot_steps_review(path):
+    """Steps that show up in the signal per step planned, from the manual review of the
+    walking trials (trials the review could not decide are left out)."""
+    with REVIEW.open(encoding="utf-8") as f:
+        rows = [r for r in csv.DictReader(f) if r["steps_in_signal"]]
+    floors = ("wood", "carpet")
+    fig = Figure(figsize=(4.3 * len(floors) + 0.8, 5.2), layout="constrained")
+    axes = fig.subplots(1, len(floors), sharey=True)
+    for ax, floor in zip(axes, floors, strict=True):
+        radii = sorted({float(r["radius_m"]) for r in rows if r["floor"] == floor})
+        for c_i, c in enumerate(cc.CONDITIONS):
+            xs = np.arange(len(radii)) + (c_i - 0.5) * 0.38
+            pct, n_trials = [], []
+            for rad in radii:
+                g = [r for r in rows if (r["floor"], r["condition"], float(r["radius_m"]))
+                     == (floor, c, rad)]
+                pct.append(100 * sum(int(r["steps_in_signal"]) for r in g)
+                           / sum(int(r["steps_planned"]) for r in g))
+                n_trials.append(len(g))
+            ax.bar(xs, pct, width=0.36, color=COLORS[c], label=c, edgecolor="white",
+                   linewidth=2)
+            for x, p, n in zip(xs, pct, n_trials, strict=True):
+                ax.text(x, max(p, 100) + 2, f"{p:.0f}%" + ("" if n == 3 else "*"),
+                        ha="center", va="bottom", fontsize=FONT_PT - 5, color=TEXT_SECONDARY)
+        ax.axhline(100, color=TEXT_SECONDARY, linewidth=1.2, linestyle=(0, (5, 4)))
+        ax.set_xticks(range(len(radii)), [f"{r:g} m" for r in radii])
+        ax.set_ylim(0, 130)
+        ax.set_title(f"{floor}, walking", loc="left")
+        _style(ax)
+        ax.grid(axis="x", visible=False)
+    axes[0].set_ylabel("steps in the signal / steps made")
+    axes[-1].legend(frameon=False, loc="upper right", ncols=2)
+    _title(fig, "Every footstep shows up in the signal, bare or enclosed",
+           "Manual review of each trial: steps counted from the waveform and their even timing, "
+           "3 trials of 10 steps per bar. *Wood, bare, 3 m: 2 trials, one left out (irregular "
+           "timing). "
+           "Carpet, bare, 3 m: one trial had 9 steps. Wood, enclosed, 1 m: one trial had 11.")
+    fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.15)
+
+
 def main(argv=None):
     global SHOW_TITLES, WALKING
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -289,6 +334,10 @@ def main(argv=None):
                           ("floor_spectra_wood.png", plot_spectra, groups),
                           ("floor_level_vs_distance.png", plot_level, groups),
                           ("floor_detection.png", plot_detection, counts)):
+        if WALKING and fn is plot_detection:
+            plot_steps_review(args.out / name)
+            print(args.out / name)
+            continue
         fn(arg, args.out / name)
         print(args.out / name)
 
