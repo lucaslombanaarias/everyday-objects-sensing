@@ -16,6 +16,7 @@ The numbers come from scripts/compare_conditions.py (levels and spectra) and the
 outputs in data/controlled/analysis/ (counts), for the sessions in SESSIONS.
 """
 
+import argparse
 import csv
 import textwrap
 from pathlib import Path
@@ -38,6 +39,8 @@ REPO = Path(__file__).resolve().parents[1]
 SESSIONS = ("session_2026-10-18_evening", "2026-10-21")
 OUT_DIR = REPO / "docs" / "figures"
 FONT_PT = 16
+SHOW_TITLES = True
+"""False (--no-title) leaves the takeaway titles off, for slides that carry them."""
 COLORS = cc.COLORS
 MUTED = "#8a8985"
 NEUTRAL = "#f1f0ec"
@@ -63,8 +66,9 @@ def _style(ax) -> None:
 
 
 def _title(fig, text, sub=None):
-    fig.suptitle(text, x=0.01, ha="left", fontsize=FONT_PT + 4, color=TEXT_PRIMARY,
-                 fontweight="bold")
+    if SHOW_TITLES:
+        fig.suptitle(text, x=0.01, ha="left", fontsize=FONT_PT + 4, color=TEXT_PRIMARY,
+                     fontweight="bold")
     if sub:
         # Below the axes; savefig's tight bounding box makes room for it.
         width = int(fig.get_figwidth() * 72 / ((FONT_PT - 4) * 0.55))
@@ -244,15 +248,22 @@ def plot_detection(counts, path):
     fig.savefig(path, dpi=300, bbox_inches="tight", pad_inches=0.15)
 
 
-def main():
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
+def main(argv=None):
+    global SHOW_TITLES
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("--out", type=Path, default=OUT_DIR, help="default: docs/figures/")
+    parser.add_argument("--no-title", action="store_true",
+                        help="leave the takeaway titles off (the slide carries them)")
+    args = parser.parse_args(argv)
+    SHOW_TITLES = not args.no_title
+    args.out.mkdir(parents=True, exist_ok=True)
     groups, rows, counts = load()
     for name, fn, arg in (("floor_enclosure_effect.png", plot_effect, rows),
                           ("floor_spectra_wood.png", plot_spectra, groups),
                           ("floor_level_vs_distance.png", plot_level, groups),
                           ("floor_detection.png", plot_detection, counts)):
-        fn(arg, OUT_DIR / name)
-        print(OUT_DIR / name)
+        fn(arg, args.out / name)
+        print(args.out / name)
 
 
 if __name__ == "__main__":
