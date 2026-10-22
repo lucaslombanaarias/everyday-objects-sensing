@@ -1,0 +1,68 @@
+{
+  "trial_id": "noise_1m_01",
+  "analyzed_at": "2026-10-21T19:38:18-05:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": "ball_drop",
+  "excitation_point_id": "fixed impact point",
+  "distance_m": 1.0,
+  "mount": "preloaded",
+  "impacts_made": 1,
+  "impacts_found": 3,
+  "difference": 2,
+  "edge_events": 0,
+  "true_impact": 0,
+  "walk_in_out": 0,
+  "other_noise": 0,
+  "unknown": 0,
+  "unreviewed": 3,
+  "baseline_used": "noise_noise_01",
+  "baseline_recorded": "noise_noise_01",
+  "baseline_mismatch": false,
+  "duration_s": 7.261333333333333,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 1.8269015163569677,
+    "100-500 Hz": 1.1403412243365898,
+    "500-2000 Hz": 0.7879988300530896,
+    "2-8 kHz": 0.9223152126829433
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 4.661,
+      "timestamp": "2026-10-21T18:10:24.616-05:00",
+      "peak_db": 69.67,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 2,
+      "t_s": 4.969,
+      "timestamp": "2026-10-21T18:10:24.924-05:00",
+      "peak_db": 43.13,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 3,
+      "t_s": 5.22,
+      "timestamp": "2026-10-21T18:10:25.175-05:00",
+      "peak_db": 15.19,
+      "flag": "",
+      "annotation": "unreviewed"
+    }
+  ]
+}

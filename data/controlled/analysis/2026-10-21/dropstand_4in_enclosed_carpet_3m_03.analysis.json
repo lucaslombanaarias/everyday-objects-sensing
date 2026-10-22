@@ -1,0 +1,52 @@
+{
+  "trial_id": "dropstand_4in_enclosed_carpet_3m_03",
+  "analyzed_at": "2026-10-21T19:38:18-05:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": "drop_stand",
+  "excitation_point_id": "fixed impact point",
+  "distance_m": 3.0,
+  "mount": "preloaded",
+  "impacts_made": 1,
+  "impacts_found": 1,
+  "difference": 0,
+  "edge_events": 1,
+  "true_impact": 0,
+  "walk_in_out": 0,
+  "other_noise": 0,
+  "unknown": 0,
+  "unreviewed": 1,
+  "baseline_used": "enclosed_wood_noise_01",
+  "baseline_recorded": "noise_noise_01",
+  "baseline_mismatch": true,
+  "duration_s": 2.0613333333333332,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 2.3276461948865514,
+    "100-500 Hz": 1.2312816536005942,
+    "500-2000 Hz": 1.078970894570624,
+    "2-8 kHz": 1.4435509046388704
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 0.926,
+      "timestamp": "2026-10-21T19:38:17.125-05:00",
+      "peak_db": 38.06,
+      "flag": "edge",
+      "annotation": "unreviewed"
+    }
+  ]
+}

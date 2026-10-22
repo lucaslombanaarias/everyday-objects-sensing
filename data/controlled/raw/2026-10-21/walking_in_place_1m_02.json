@@ -1,0 +1,59 @@
+{
+  "meta_version": 2,
+  "trial_id": "walking_in_place_1m_02",
+  "date": "2026-10-21",
+  "start_time": "2026-10-21T18:18:21.760-05:00",
+  "noise_only": false,
+  "operator": null,
+  "floor_material": "carpet",
+  "floor_location": null,
+  "distance_m": 1.0,
+  "excitation": {
+    "type": "walking",
+    "mass_g": null,
+    "drop_height_cm": null,
+    "tip": null
+  },
+  "excitation_point_id": null,
+  "impacts_made": 10,
+  "sensor_mount": {
+    "method": "preloaded",
+    "preload": null
+  },
+  "baseline_noise_id": "noise_noise_01",
+  "sensor_serial": null,
+  "ambient_conditions": null,
+  "notes": null,
+  "fw_commit": null,
+  "repo_commit": null,
+  "repo_dirty": null,
+  "fw_source_commit": null,
+  "fs_hz": 48000.0,
+  "port": "COM7",
+  "requested_duration_s": 8.946,
+  "checks": {
+    "frames": 3366,
+    "samples": 430848,
+    "crc_errors": 0,
+    "skipped_bytes_after_first_frame": 0,
+    "counter_gaps": 0,
+    "missing_samples": 0,
+    "out_of_order_frames": 0,
+    "device_overflow_events": 0,
+    "clipped_samples": 0,
+    "nominal_fs_hz": 48000.0,
+    "measured_fs_hz": 48326.89840999109,
+    "fs_within_tolerance": true,
+    "ok": true
+  },
+  "files": {
+    "csv": "walking_in_place_1m_02.csv",
+    "mat": "walking_in_place_1m_02.mat"
+  },
+  "software": {
+    "python": "3.14.7",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pyserial": "3.5"
+  }
+}
