@@ -272,7 +272,7 @@ The Results tab opens on the trial just recorded. The header shows made, found a
 
 ![What a trial looks like in the dashboard](../figures/dashboard_trial_example.png)
 
-The PCM dashboard on `bare_trial_2m_01` (10 stomps at 2 m, bare sensor, 18 October evening session): the full window, then the whole Results tab, which scrolls in the window. No board was attached when this was taken, so the live view on the left shows the synthetic SIM stream. The summary table at the bottom groups trials by excitation and radius only, so the bare-sensor and vase trials of that session are pooled there.
+The PCM dashboard on `tile_bare_stomp_2m_01` (saved as `bare_trial_2m_01`, the name in the screenshot; 10 stomps at 2 m, bare sensor, 18 October evening session): the full window, then the whole Results tab, which scrolls in the window. No board was attached when this was taken, so the live view on the left shows the synthetic SIM stream. The summary table at the bottom groups trials by excitation and radius only, so the bare-sensor and vase trials of that session are pooled there.
 
 | On the plot | Meaning |
 |---|---|

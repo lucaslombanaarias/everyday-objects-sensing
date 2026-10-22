@@ -55,7 +55,7 @@ What a trial looks like:
 
 ![The PCM dashboard showing one stomp trial](../../docs/figures/dashboard_trial_example.png)
 
-The PCM dashboard on `bare_trial_2m_01` (10 stomps at 2 m, bare sensor, 18 October evening session): the full window, then the whole Results tab, which scrolls in the window. No board was attached when this was taken, so the live view on the left shows the synthetic SIM stream. The summary table at the bottom groups trials by excitation and radius only, so the bare-sensor and vase trials of that session are pooled there.
+The PCM dashboard on `tile_bare_stomp_2m_01` (saved as `bare_trial_2m_01`, the name in the screenshot; 10 stomps at 2 m, bare sensor, 18 October evening session): the full window, then the whole Results tab, which scrolls in the window. No board was attached when this was taken, so the live view on the left shows the synthetic SIM stream. The summary table at the bottom groups trials by excitation and radius only, so the bare-sensor and vase trials of that session are pooled there.
 
 `data/raw/` and `data/analysis/` are not committed. To share a day of trials with the other computers, run `python scripts/share_trials.py` from the repo root: it copies the newest day's trials (.json and .mat) and analysis to `data/controlled/`, commits and pushes, so `git pull` brings them elsewhere. Give a date (`python scripts/share_trials.py 2026-10-21`) for another day, or the path of the folder if the trials are somewhere else (`python scripts/share_trials.py "C:\Users\me\Desktop\2026-10-21"`). It prints the folder it looked in.
 

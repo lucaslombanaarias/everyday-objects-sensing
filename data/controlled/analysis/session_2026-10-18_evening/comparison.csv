@@ -1,0 +1,9 @@
+floor,excitation,radius_m,level,bare_impacts,bare_trials,bare_median_db,bare_iqr_db,bare_median_above_noise_db,bare_trial_medians_db,bare_baseline,enclosed_impacts,enclosed_trials,enclosed_median_db,enclosed_iqr_db,enclosed_median_above_noise_db,enclosed_trial_medians_db,enclosed_baseline,enclosed_minus_bare_db,separated,near_noise
+tile,stomp,1.0,above 100 Hz (5 ms),30,3,39.9,5.9,29.1,39.1 39.9 41.2,tile_bare_noise_01,26,3,33.2,5.5,22.4,31.5 33.4 33.8,tile_bare_noise_01,-6.7,yes,no
+tile,stomp,1.0,100-500 Hz,30,3,33.6,4.9,22.8,32.9 33.3 35.6,tile_bare_noise_01,26,3,20.3,8.2,9.5,16.0 22.7 24.2,tile_bare_noise_01,-13.3,yes,no
+tile,stomp,1.0,500-2000 Hz,30,3,17.3,4.3,21.2,16.9 17.1 18.3,tile_bare_noise_01,26,3,23.6,5.7,27.5,21.3 24.2 26.7,tile_bare_noise_01,6.3,yes,no
+tile,stomp,1.0,2-8 kHz,30,3,12.0,4.0,11.1,10.4 11.1 13.4,tile_bare_noise_01,26,3,15.2,5.7,14.3,12.9 16.2 16.6,tile_bare_noise_01,3.1,no,no
+tile,stomp,2.0,above 100 Hz (5 ms),30,3,40.9,4.2,30.2,39.8 40.7 42.0,tile_bare_noise_01,29,3,30.6,5.1,19.9,26.9 30.6 33.2,tile_bare_noise_01,-10.3,yes,no
+tile,stomp,2.0,100-500 Hz,30,3,35.6,4.0,24.8,34.5 35.2 36.5,tile_bare_noise_01,29,3,20.5,4.0,9.8,20.2 20.4 22.0,tile_bare_noise_01,-15.0,yes,no
+tile,stomp,2.0,500-2000 Hz,30,3,16.4,4.0,20.4,15.1 16.3 16.8,tile_bare_noise_01,29,3,21.5,6.5,25.4,17.9 21.6 23.6,tile_bare_noise_01,5.0,yes,no
+tile,stomp,2.0,2-8 kHz,30,3,11.5,2.9,10.6,10.2 12.1 12.2,tile_bare_noise_01,29,3,15.0,3.7,14.0,13.3 14.3 17.2,tile_bare_noise_01,3.5,yes,no
