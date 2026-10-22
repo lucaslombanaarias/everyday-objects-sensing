@@ -8,11 +8,9 @@ folder to data/controlled/raw/<date>/ (the per-sample CSVs hold the same data an
 out), copies the day's analysis outputs with their event tags to
 data/controlled/analysis/<date>/, then commits and pushes.
 
-Trials are looked for where the dashboard and acquisition.record save them by default
-(acquisition.record.DEFAULT_OUT_DIR, data/raw/ of the clone the acquisition package is
-installed from). Without an argument it takes the newest day there; give a date for
-another day, or the path of any folder of trials (one recorded with --out-dir, or copied
-from elsewhere). It can be run from any folder.
+Without an argument it takes the newest day in this clone's data/raw/; give a date for
+another day, or the path of any folder of trials (one recorded in another copy of the repo
+or with --out-dir). It needs only Python and git, and can be run from any folder.
 """
 
 import argparse
@@ -22,10 +20,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
-from acquisition.record import DEFAULT_OUT_DIR
-from everyday_sensing.impacts import analysis_folder
-
 REPO = Path(__file__).resolve().parents[1]
+DEFAULT_OUT_DIR = REPO / "data" / "raw"
 CONTROLLED = REPO / "data" / "controlled"
 
 
@@ -68,7 +64,9 @@ def main(argv=None):
     for f in trials:
         shutil.copy2(f, dst / f.name)
     print(f"copied {len(trials)} files to {dst}")
-    analysis = analysis_folder(day)
+    # Where everyday_sensing.impacts.analysis_folder puts the det-v1 outputs for the day.
+    analysis = day.parent.parent / "analysis" / day.name if day.parent.name == "raw" else (
+        day / "analysis")
     if analysis.is_dir():
         shutil.copytree(analysis, CONTROLLED / "analysis" / date, dirs_exist_ok=True)
         print(f"copied {analysis} to {CONTROLLED / 'analysis' / date}")
