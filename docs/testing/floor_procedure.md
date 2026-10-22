@@ -47,7 +47,7 @@ For each condition and radius, over the drops of both blocks:
 - each condition's noise floor: its noise baselines in counts (`<trial>.analysis.json`), and false alarms per minute;
 - the drops found against made, as a sanity check of the detector.
 
-The levels are relative to each block's own noise baseline. To compare received level directly, also compare the impacts' RMS in counts, which does not depend on the baseline. A script that makes this comparison table and an averaged impact spectrum per condition is not written yet; until then the per-impact levels are in `impacts_trials.csv`.
+The levels are relative to each block's own noise baseline. To compare received level directly, also compare the impacts' RMS in counts, which does not depend on the baseline. `python scripts/compare_conditions.py data/controlled/raw/<date>` does both for trials named `<floor>_<bare|enclosed>_<excitation>_<radius>m_<nn>`: each impact's levels in dB re 1 count, enclosed minus bare per band with whether it exceeds the trial-to-trial spread (`comparison.csv`), and the averaged impact spectra and their difference (`comparison_*.png`).
 
 ### Check before reporting
 

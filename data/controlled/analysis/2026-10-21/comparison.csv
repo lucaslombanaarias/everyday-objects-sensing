@@ -1,0 +1,49 @@
+floor,excitation,radius_m,level,bare_impacts,bare_trials,bare_median_db,bare_iqr_db,bare_median_above_noise_db,bare_trial_medians_db,bare_baseline,enclosed_impacts,enclosed_trials,enclosed_median_db,enclosed_iqr_db,enclosed_median_above_noise_db,enclosed_trial_medians_db,enclosed_baseline,enclosed_minus_bare_db,separated,near_noise
+carpet,drop4in,1.0,above 100 Hz (5 ms),3,3,68.3,5.5,63.0,57.3 68.3 68.4,carpet_bare_noise_01,3,3,66.2,3.0,58.9,62.9 66.2 69.0,wood_enclosed_noise_01,-2.1,no,no
+carpet,drop4in,1.0,100-500 Hz,3,3,51.9,2.2,50.7,49.3 51.9 53.7,carpet_bare_noise_01,3,3,58.4,1.6,56.6,55.9 58.4 59.1,wood_enclosed_noise_01,6.6,yes,no
+carpet,drop4in,1.0,500-2000 Hz,3,3,58.3,5.9,60.3,47.2 58.3 58.9,carpet_bare_noise_01,3,3,50.5,4.7,49.9,47.2 50.5 56.6,wood_enclosed_noise_01,-7.7,no,no
+carpet,drop4in,1.0,2-8 kHz,3,3,44.8,7.6,45.5,31.2 44.8 46.4,carpet_bare_noise_01,3,3,41.2,4.2,38.0,40.7 41.2 49.0,wood_enclosed_noise_01,-3.5,no,no
+carpet,drop4in,2.0,above 100 Hz (5 ms),3,3,52.0,0.3,46.8,51.5 52.0 52.1,carpet_bare_noise_01,3,3,53.8,1.1,46.5,51.7 53.8 53.9,wood_enclosed_noise_01,1.8,no,no
+carpet,drop4in,2.0,100-500 Hz,3,3,44.9,1.8,43.8,42.5 44.9 46.1,carpet_bare_noise_01,3,3,48.7,0.8,46.9,47.2 48.7 48.8,wood_enclosed_noise_01,3.8,yes,no
+carpet,drop4in,2.0,500-2000 Hz,3,3,36.6,2.3,38.6,36.2 36.6 40.8,carpet_bare_noise_01,3,3,37.2,0.9,36.6,36.2 37.2 37.9,wood_enclosed_noise_01,0.7,no,no
+carpet,drop4in,2.0,2-8 kHz,3,3,17.6,2.5,18.3,16.9 17.6 21.9,carpet_bare_noise_01,3,3,29.5,0.9,26.4,28.9 29.5 30.7,wood_enclosed_noise_01,11.9,yes,no
+carpet,drop4in,3.0,above 100 Hz (5 ms),3,3,47.3,2.4,42.1,43.5 47.3 48.3,carpet_bare_noise_01,3,3,45.4,0.2,38.1,45.0 45.4 45.4,wood_enclosed_noise_01,-1.9,no,no
+carpet,drop4in,3.0,100-500 Hz,3,3,40.0,1.0,38.9,38.8 40.0 40.8,carpet_bare_noise_01,3,3,41.2,0.5,39.4,40.2 41.2 41.3,wood_enclosed_noise_01,1.2,no,no
+carpet,drop4in,3.0,500-2000 Hz,3,3,38.4,4.2,40.4,31.0 38.4 39.4,carpet_bare_noise_01,3,3,34.9,1.3,34.2,32.8 34.9 35.4,wood_enclosed_noise_01,-3.5,no,no
+carpet,drop4in,3.0,2-8 kHz,3,3,17.8,2.1,18.5,16.6 17.8 20.7,carpet_bare_noise_01,3,3,25.2,6.1,22.0,21.4 25.2 33.7,wood_enclosed_noise_01,7.3,yes,no
+carpet,walk,1.0,above 100 Hz (5 ms),30,3,36.1,5.7,30.8,34.2 36.0 37.6,carpet_bare_noise_01,30,3,38.5,4.6,31.2,38.2 38.5 39.0,carpet_enclosed_noise_01,2.5,yes,no
+carpet,walk,1.0,100-500 Hz,30,3,31.8,4.8,30.7,30.4 31.6 33.1,carpet_bare_noise_01,30,3,34.1,4.2,31.5,33.4 34.1 34.5,carpet_enclosed_noise_01,2.3,yes,no
+carpet,walk,1.0,500-2000 Hz,30,3,12.2,12.2,14.3,9.5 10.4 14.6,carpet_bare_noise_01,30,3,14.5,9.7,13.3,14.0 16.1 16.6,carpet_enclosed_noise_01,2.3,no,no
+carpet,walk,1.0,2-8 kHz,30,3,4.6,5.4,5.3,2.5 5.4 6.4,carpet_bare_noise_01,30,3,8.7,7.7,6.7,7.4 8.7 8.8,carpet_enclosed_noise_01,4.1,yes,yes
+carpet,walk,2.0,above 100 Hz (5 ms),29,3,29.5,8.4,24.3,27.7 29.9 30.8,carpet_bare_noise_01,27,3,28.3,6.4,21.0,27.4 28.7 30.3,carpet_enclosed_noise_01,-1.2,no,no
+carpet,walk,2.0,100-500 Hz,29,3,24.3,7.5,23.1,23.8 24.7 26.9,carpet_bare_noise_01,27,3,23.2,7.9,20.6,23.1 23.2 23.6,carpet_enclosed_noise_01,-1.1,yes,no
+carpet,walk,2.0,500-2000 Hz,29,3,2.6,5.3,4.7,2.0 2.9 4.2,carpet_bare_noise_01,27,3,6.2,6.2,5.0,5.4 6.8 9.6,carpet_enclosed_noise_01,3.6,yes,yes
+carpet,walk,2.0,2-8 kHz,29,3,1.5,1.0,2.2,1.2 1.6 1.8,carpet_bare_noise_01,27,3,5.3,1.5,3.3,4.8 5.3 5.6,carpet_enclosed_noise_01,3.8,yes,yes
+carpet,walk,3.0,above 100 Hz (5 ms),24,3,23.0,3.4,17.8,22.6 22.8 24.3,carpet_bare_noise_01,21,3,28.0,5.7,20.7,24.4 28.3 28.6,carpet_enclosed_noise_01,5.0,yes,no
+carpet,walk,3.0,100-500 Hz,24,3,18.5,3.0,17.3,18.2 18.3 19.8,carpet_bare_noise_01,21,3,25.4,5.6,22.8,22.9 26.0 26.2,carpet_enclosed_noise_01,7.0,yes,no
+carpet,walk,3.0,500-2000 Hz,24,3,0.9,2.0,3.0,0.7 0.7 1.2,carpet_bare_noise_01,21,3,4.1,1.8,2.9,3.6 4.1 4.2,carpet_enclosed_noise_01,3.2,yes,yes
+carpet,walk,3.0,2-8 kHz,24,3,1.7,0.7,2.4,1.3 1.6 1.8,carpet_bare_noise_01,21,3,4.1,1.0,2.0,4.0 4.1 4.1,carpet_enclosed_noise_01,2.4,yes,yes
+wood,drop4in,1.0,above 100 Hz (5 ms),4,4,75.4,3.7,68.5,73.2 73.9 76.9 79.2,wood_bare_noise_01,3,3,73.4,2.0,66.5,71.6 73.4 75.6,wood_bare_noise_01,-2.1,no,no
+wood,drop4in,1.0,100-500 Hz,4,4,63.2,2.2,62.7,61.0 62.2 64.1 64.3,wood_bare_noise_01,3,3,61.2,2.3,60.7,59.0 61.2 63.6,wood_bare_noise_01,-1.9,no,no
+wood,drop4in,1.0,500-2000 Hz,4,4,66.3,3.9,63.6,62.6 64.8 67.8 69.2,wood_bare_noise_01,3,3,59.9,0.3,57.2,59.8 59.9 60.4,wood_bare_noise_01,-6.4,yes,no
+wood,drop4in,1.0,2-8 kHz,4,4,58.0,4.0,56.8,55.1 56.5 59.5 62.0,wood_bare_noise_01,3,3,62.0,2.8,60.8,61.1 62.0 66.7,wood_bare_noise_01,4.0,no,no
+wood,drop4in,2.0,above 100 Hz (5 ms),3,3,63.8,1.8,56.9,61.6 63.8 65.3,wood_bare_noise_01,3,3,62.3,3.1,55.4,59.9 62.3 66.0,wood_bare_noise_01,-1.5,no,no
+wood,drop4in,2.0,100-500 Hz,3,3,48.1,3.9,47.6,47.5 48.1 55.2,wood_bare_noise_01,3,3,48.6,0.7,48.1,47.5 48.6 48.8,wood_bare_noise_01,0.5,no,no
+wood,drop4in,2.0,500-2000 Hz,3,3,55.4,1.9,52.7,52.3 55.4 56.0,wood_bare_noise_01,3,3,50.6,1.5,48.0,49.9 50.6 53.0,wood_bare_noise_01,-4.8,no,no
+wood,drop4in,2.0,2-8 kHz,3,3,45.9,1.8,44.7,45.3 45.9 48.9,wood_bare_noise_01,3,3,56.4,1.5,55.2,55.1 56.4 58.1,wood_bare_noise_01,10.4,yes,no
+wood,drop4in,3.0,above 100 Hz (5 ms),3,3,62.9,2.5,55.9,61.4 62.9 66.3,wood_bare_noise_01,3,3,59.6,1.2,52.7,58.1 59.6 60.4,wood_bare_noise_01,-3.3,yes,no
+wood,drop4in,3.0,100-500 Hz,3,3,48.1,1.8,47.6,47.7 48.1 51.4,wood_bare_noise_01,3,3,41.2,1.1,40.7,39.7 41.2 41.9,wood_bare_noise_01,-6.8,yes,no
+wood,drop4in,3.0,500-2000 Hz,3,3,55.1,1.7,52.4,53.6 55.1 56.9,wood_bare_noise_01,3,3,47.1,0.4,44.4,46.4 47.1 47.1,wood_bare_noise_01,-8.0,yes,no
+wood,drop4in,3.0,2-8 kHz,3,3,45.2,0.6,44.0,44.7 45.2 45.8,wood_bare_noise_01,3,3,55.6,1.7,54.4,52.8 55.6 56.1,wood_bare_noise_01,10.4,yes,no
+wood,walk,1.0,above 100 Hz (5 ms),31,3,41.4,8.1,34.5,39.3 40.8 43.7,wood_bare_noise_01,32,3,37.7,3.9,30.8,36.4 37.8 38.8,wood_bare_noise_01,-3.7,yes,no
+wood,walk,1.0,100-500 Hz,31,3,32.8,7.4,32.3,32.3 32.8 35.1,wood_bare_noise_01,32,3,30.7,4.1,30.2,30.4 30.6 32.1,wood_bare_noise_01,-2.1,yes,no
+wood,walk,1.0,500-2000 Hz,31,3,29.0,13.5,26.3,24.3 29.8 30.2,wood_bare_noise_01,32,3,19.5,5.8,16.8,16.7 19.5 20.4,wood_bare_noise_01,-9.5,yes,no
+wood,walk,1.0,2-8 kHz,31,3,19.9,13.0,18.7,17.6 21.1 22.4,wood_bare_noise_01,32,3,25.4,5.4,24.2,24.1 26.4 26.8,wood_bare_noise_01,5.6,yes,no
+wood,walk,2.0,above 100 Hz (5 ms),29,3,33.4,4.3,26.5,31.7 33.4 34.8,wood_bare_noise_01,30,3,35.3,4.5,28.4,34.5 36.2 36.4,wood_bare_noise_01,1.9,no,no
+wood,walk,2.0,100-500 Hz,29,3,28.7,4.2,28.2,26.1 28.7 29.8,wood_bare_noise_01,30,3,30.5,6.0,30.0,29.8 31.8 32.0,wood_bare_noise_01,1.8,yes,no
+wood,walk,2.0,500-2000 Hz,29,3,20.7,8.3,18.1,19.0 19.5 21.8,wood_bare_noise_01,30,3,14.4,4.5,11.7,13.5 13.8 15.1,wood_bare_noise_01,-6.4,yes,no
+wood,walk,2.0,2-8 kHz,29,3,9.1,6.3,7.9,7.9 9.3 10.6,wood_bare_noise_01,30,3,22.3,3.1,21.1,21.8 22.1 22.3,wood_bare_noise_01,13.2,yes,no
+wood,walk,3.0,above 100 Hz (5 ms),32,3,37.5,6.2,30.6,35.9 37.8 38.4,wood_bare_noise_01,30,3,32.0,7.2,25.1,28.3 32.2 33.2,wood_bare_noise_01,-5.5,yes,no
+wood,walk,3.0,100-500 Hz,32,3,24.0,5.9,23.5,23.1 24.7 25.4,wood_bare_noise_01,30,3,26.4,7.9,25.9,22.4 27.5 29.3,wood_bare_noise_01,2.4,no,no
+wood,walk,3.0,500-2000 Hz,32,3,26.8,8.3,24.1,26.4 26.6 28.7,wood_bare_noise_01,30,3,15.2,6.4,12.5,14.8 15.3 15.9,wood_bare_noise_01,-11.6,yes,no
+wood,walk,3.0,2-8 kHz,32,3,12.2,6.4,11.0,11.5 12.3 13.4,wood_bare_noise_01,30,3,19.9,6.8,18.7,18.7 20.7 20.9,wood_bare_noise_01,7.7,yes,no
