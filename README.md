@@ -31,6 +31,12 @@ Regenerate the slide figures in `docs/figures/`:
 python scripts/plot_filter_figures.py
 ```
 
+and the floor test slide figures (bare against enclosed):
+
+```
+python scripts/plot_floor_slides.py
+```
+
 ## Recording data
 
 For floor tests (drops, stomps, steps and walking at set distances, on different floors and mounts), follow the [floor test procedure](docs/testing/floor_procedure.md).
