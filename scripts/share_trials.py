@@ -1,56 +1,80 @@
 """Publish a day of dashboard trials to data/controlled/ and push them.
 
-    python scripts/share_trials.py [<date>]
+    python scripts/share_trials.py [<date> | <folder>]
 
 data/raw/ and data/analysis/ are not committed, so trials recorded on one computer do not
-reach the others through git. This pulls, copies each trial's .json and .mat from
-data/raw/<date>/ to data/controlled/raw/<date>/ (the per-sample CSVs hold the same data and
-are left out), copies data/analysis/<date>/ with its event tags to
-data/controlled/analysis/<date>/, then commits and pushes. Without a date it takes the
-newest folder in data/raw/. Run it from the repo root.
+reach the others through git. This pulls, copies each trial's .json and .mat from the day's
+folder to data/controlled/raw/<date>/ (the per-sample CSVs hold the same data and are left
+out), copies the day's analysis outputs with their event tags to
+data/controlled/analysis/<date>/, then commits and pushes.
+
+Trials are looked for where the dashboard and acquisition.record save them by default
+(acquisition.record.DEFAULT_OUT_DIR, data/raw/ of the clone the acquisition package is
+installed from). Without an argument it takes the newest day there; give a date for
+another day, or the path of any folder of trials (one recorded with --out-dir, or copied
+from elsewhere). It can be run from any folder.
 """
 
 import argparse
+import json
+import re
 import shutil
 import subprocess
 from pathlib import Path
 
-RAW = Path("data/raw")
-ANALYSIS = Path("data/analysis")
-CONTROLLED = Path("data/controlled")
+from acquisition.record import DEFAULT_OUT_DIR
+from everyday_sensing.impacts import analysis_folder
+
+REPO = Path(__file__).resolve().parents[1]
+CONTROLLED = REPO / "data" / "controlled"
 
 
-def git(*args):
-    subprocess.run(["git", *args], check=True)
+def git(*args, check=True):
+    return subprocess.run(["git", *args], cwd=REPO, check=check)
+
+
+def find_day(arg: str | None) -> Path:
+    if arg and Path(arg).is_dir():
+        return Path(arg).resolve()
+    days = sorted(p.name for p in DEFAULT_OUT_DIR.glob("*") if p.is_dir())
+    if not days:
+        raise SystemExit(f"no day folders in {DEFAULT_OUT_DIR} (give the folder of the "
+                         "trials: python scripts/share_trials.py <folder>)")
+    if arg and arg not in days:
+        raise SystemExit(f"no folder {arg} in {DEFAULT_OUT_DIR} (days there: "
+                         f"{', '.join(days)}); give the folder of the trials instead")
+    return DEFAULT_OUT_DIR / (arg or days[-1])
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("date", nargs="?", help="a data/raw/<date> folder; default: the newest")
+    parser.add_argument("day", nargs="?",
+                        help="a date in data/raw/ or a folder of trials; default: the newest day")
     args = parser.parse_args(argv)
 
-    days = sorted(p.name for p in RAW.glob("*") if p.is_dir())
-    if not days:
-        raise SystemExit(f"no trials in {RAW}/ (run this from the repo root)")
-    date = args.date or days[-1]
-    src = RAW / date
-    trials = sorted(src.glob("*.json")) + sorted(src.glob("*.mat"))
+    day = find_day(args.day)
+    print(f"looking in {day}")
+    sidecars = sorted(day.glob("*.json"))
+    trials = sidecars + sorted(day.glob("*.mat"))
     if not trials:
-        raise SystemExit(f"no .json or .mat trials in {src}/ (folders: {', '.join(days)})")
+        raise SystemExit(f"no .json or .mat trials in {day}")
+    date = day.name
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+        date = json.loads(sidecars[0].read_text()).get("date", date) if sidecars else date
 
     git("pull")
     dst = CONTROLLED / "raw" / date
     dst.mkdir(parents=True, exist_ok=True)
     for f in trials:
         shutil.copy2(f, dst / f.name)
-    print(f"copied {len(trials)} files from {src}/ to {dst}/")
-    if (ANALYSIS / date).is_dir():
-        shutil.copytree(ANALYSIS / date, CONTROLLED / "analysis" / date, dirs_exist_ok=True)
-        print(f"copied {ANALYSIS / date}/ to {CONTROLLED / 'analysis' / date}/")
+    print(f"copied {len(trials)} files to {dst}")
+    analysis = analysis_folder(day)
+    if analysis.is_dir():
+        shutil.copytree(analysis, CONTROLLED / "analysis" / date, dirs_exist_ok=True)
+        print(f"copied {analysis} to {CONTROLLED / 'analysis' / date}")
 
     git("add", str(CONTROLLED))
-    staged = subprocess.run(["git", "diff", "--cached", "--quiet", "--", str(CONTROLLED)])
-    if staged.returncode == 0:
+    if git("diff", "--cached", "--quiet", "--", str(CONTROLLED), check=False).returncode == 0:
         print("nothing new to push")
         return
     git("commit", "-m", f"Add floor trials from {date}", "--", str(CONTROLLED))
