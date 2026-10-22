@@ -1,0 +1,61 @@
+{
+  "meta_version": 2,
+  "trial_id": "wood_bare_drop4in_3m_02",
+  "date": "2026-10-21",
+  "start_time": "2026-10-21T19:18:38.835-05:00",
+  "noise_only": false,
+  "operator": null,
+  "floor_material": "wood",
+  "floor_location": null,
+  "distance_m": 3.0,
+  "excitation": {
+    "type": "drop_stand",
+    "mass_g": null,
+    "drop_height_cm": 10.2,
+    "tip": "flat"
+  },
+  "excitation_point_id": "fixed impact point",
+  "impacts_made": 1,
+  "sensor_mount": {
+    "method": "preloaded",
+    "preload": null
+  },
+  "baseline_noise_id": "wood_bare_noise_01",
+  "sensor_serial": null,
+  "ambient_conditions": null,
+  "notes": "Drop stand, 4 in (10.2 cm), flat tip, at 3 m, wood, bare sensor with weight on top, trial 2.",
+  "fw_commit": null,
+  "repo_commit": null,
+  "repo_dirty": null,
+  "fw_source_commit": null,
+  "fs_hz": 48000.0,
+  "port": "COM7",
+  "requested_duration_s": 3.204,
+  "checks": {
+    "frames": 1197,
+    "samples": 153216,
+    "crc_errors": 0,
+    "skipped_bytes_after_first_frame": 0,
+    "counter_gaps": 0,
+    "missing_samples": 0,
+    "out_of_order_frames": 0,
+    "device_overflow_events": 0,
+    "clipped_samples": 0,
+    "nominal_fs_hz": 48000.0,
+    "measured_fs_hz": 48970.60443667351,
+    "fs_within_tolerance": false,
+    "ok": false
+  },
+  "files": {
+    "csv": "wood_bare_drop4in_3m_02.csv",
+    "mat": "wood_bare_drop4in_3m_02.mat"
+  },
+  "software": {
+    "python": "3.14.7",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pyserial": "3.5"
+  },
+  "edit_note": "2026-10-22: renamed from dropstand_4in_wood_3m_02 to wood_bare_drop4in_3m_02, on the operator's instruction",
+  "published_note": "Published copy: the .mat meta is rewritten to match this sidecar; the samples are unchanged"
+}

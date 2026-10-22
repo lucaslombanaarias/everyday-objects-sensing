@@ -56,3 +56,18 @@ The two 1 m vase trials were reviewed against the stomp rhythm (about 0.6 s betw
 Neither result changes det-v1: a longer merge window would absorb the double counts, but that is a question for a later detector version, tested on new recordings. The other vase trials (`1m_03`, `2m_01`, `2m_03`) and the bare-sensor trials are not reviewed event by event beyond what is noted above.
 
 Edits after recording, each noted in the trial's `edit_note`: two trial numbers in the notes corrected, the bare trials renamed from `fs_*` to `bare_trial_*`, the vase 1 m notes corrected from "2 m" to "1 m", and "walking" corrected to "stomping". In this published copy each `.mat` file's `meta` is rewritten to match its `.json` (its samples are unchanged); see `published_note` in each sidecar.
+
+## 2026-10-21: bare against enclosed, carpet and wood
+
+Folder `2026-10-21`, 18:09 to 19:38. Trial IDs are `<floor>_<bare|enclosed>_<excitation>_<radius>m_<nn>`, and noise baselines `<floor>_<bare|enclosed>_noise_01`. `walk` is Elsa walking in place, 10 steps; `drop4in` and `drop7in` are the drop stand at 4 in (10.2 cm) and 7 in (17.8 cm), flat tip, one drop per trial. The bare sensor has a weight on top (mount `preloaded`); the enclosed trials are recorded with the same mount. Three trials per radius, recorded in this order:
+
+| Block | Noise baseline | Trials (found / made per trial) |
+|---|---|---|
+| Carpet, bare | `carpet_bare_noise_01`, 0 false alarms per minute | `drop7in` 1 m only: 3, 5, 3 / 1. `walk` 1 m: 10, 10, 10; 2 m: 10, 10, 9; 3 m: 9, 7, 8 / 10. `drop4in` 1 m: 2, 1, 1; 2 m: 1, 1, 3; 3 m: 1, 2, 2 / 1 |
+| Wood, bare | `wood_bare_noise_01`, 4.1 false alarms per minute | `walk` 1 m: 10, 13, 10; 2 m: 10, 9, 11; 3 m: 12, 10, 10 / 10. `drop4in` 1 m (four trials): 2, 3, 2, 2; 2 m: 3, 2, 2; 3 m: 3, 2, 2 / 1 |
+| Wood, enclosed | none before it; measured against `wood_bare_noise_01` | `walk` 1 m: 11, 11, 10; 2 m: 10, 10, 10; 3 m: 10, 10, 10 / 10. `drop4in` 1 m: 4, 3, 3; 2 m: 2, 2, 2; 3 m: 3, 2, 2 / 1 |
+| Carpet, enclosed | `wood_enclosed_noise_01` (recorded on wood, after the enclosed wood drops) | `drop4in` 1 m: 1, 1, 1; 2 m: 1, 1, 1; 3 m: 1, 2, 1 / 1. No walking. |
+
+Not reviewed event by event, and no events are tagged yet. Most drops on wood give 2 or 3 events for one drop. The `wood_bare_noise_01` false-alarm rate is above the 3 per minute limit in the floor procedure. Twenty of the drop trials, all 2 to 4.6 s long, fail only the recorder's sample-rate check (measured 48,970 to 49,740 samples/s against the host clock over too short a recording); none has lost samples, CRC errors, overflows or clipping.
+
+Edits after recording, each noted in the trial's `edit_note` with the original ID and notes: every trial renamed to the scheme above; the empty notes filled in from it; the three 7 in drops (first saved as `noise_1m_01` to `_03`) corrected from `ball_drop` at 7.0 cm to `drop_stand` at 17.8 cm and numbered in recording order (their notes had said trials 1, 3, 2); `carpet_bare_walk_1m_01` corrected from 1 impact made to 10; the first enclosed walk at 1 m (saved as `wood_1m_05`) and the fourth bare drop at 1 m on wood (`wood_1m_04`) and second drop at 2 m on carpet (`carpet_2m_04`) given their block's names. In this published copy each `.mat` file's `meta` is rewritten to match its `.json` (its samples are unchanged).
