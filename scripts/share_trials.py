@@ -6,7 +6,9 @@ data/raw/ and data/analysis/ are not committed, so trials recorded on one comput
 reach the others through git. This pulls, copies each trial's .json and .mat from the day's
 folder to data/controlled/raw/<date>/ (the per-sample CSVs hold the same data and are left
 out), copies the day's analysis outputs with their event tags to
-data/controlled/analysis/<date>/, then commits and pushes.
+data/controlled/analysis/<date>/, then commits and pushes. Trials already published under
+another name (renamed after sharing) are skipped, and so are the folder's day-wide summary
+CSVs then, since they carry the old names.
 
 Without an argument it takes the newest day in this clone's data/raw/; give a date for
 another day, or the path of any folder of trials (one recorded in another copy of the repo
@@ -77,11 +79,12 @@ def main(argv=None):
     dst = CONTROLLED / "raw" / date
     renamed = published_under_other_names(sidecars, dst)
     if renamed:
-        raise SystemExit(
-            f"{len(renamed)} of these trials are already published under other names, e.g. "
-            f"{renamed[0][0]} as {renamed[0][1]}. This folder has the names from before they "
-            "were renamed, so nothing was copied. Move it out of data/raw (keep it as a "
-            "backup), or share another folder.")
+        old = {name for name, _ in renamed}
+        trials = [f for f in trials if f.stem not in old]
+        print(f"skipping {len(renamed)} trials already published under other names, e.g. "
+              f"{renamed[0][0]} as {renamed[0][1]}")
+        if not trials:
+            raise SystemExit("nothing new to share")
     dst.mkdir(parents=True, exist_ok=True)
     for f in trials:
         shutil.copy2(f, dst / f.name)
@@ -89,7 +92,15 @@ def main(argv=None):
     # Where everyday_sensing.impacts.analysis_folder puts the det-v1 outputs for the day.
     analysis = day.parent.parent / "analysis" / day.name if day.parent.name == "raw" else (
         day / "analysis")
-    if analysis.is_dir():
+    if analysis.is_dir() and renamed:
+        new = {f.stem for f in trials}
+        files = [f for f in analysis.glob("*") if f.name.removeprefix("events_").split(".")[0]
+                 in new]
+        (CONTROLLED / "analysis" / date).mkdir(parents=True, exist_ok=True)
+        for f in files:
+            shutil.copy2(f, CONTROLLED / "analysis" / date / f.name)
+        print(f"copied the analysis of the {len(new)} new trials from {analysis}")
+    elif analysis.is_dir():
         shutil.copytree(analysis, CONTROLLED / "analysis" / date, dirs_exist_ok=True)
         print(f"copied {analysis} to {CONTROLLED / 'analysis' / date}")
 
