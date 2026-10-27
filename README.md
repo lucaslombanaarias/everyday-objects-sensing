@@ -37,6 +37,10 @@ and the floor test slide figures (bare against enclosed):
 python scripts/plot_floor_slides.py
 ```
 
+## Wavelet transform (MATLAB)
+
+`matlab/wavelet/` has the Morlet wavelet transform code from Prof. Vakakis's lab, with an example. See [its README](matlab/wavelet/README.md) for how to run it on a trial and compare two floors.
+
 ## Recording data
 
 For floor tests (drops, stomps, steps and walking at set distances, on different floors and mounts), follow the [floor test procedure](docs/testing/floor_procedure.md).
