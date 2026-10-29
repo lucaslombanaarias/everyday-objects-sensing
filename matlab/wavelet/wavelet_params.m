@@ -10,12 +10,17 @@ function P = wavelet_params()
 %   NextGap before it.
 %
 %   Ring time: from the band envelope's peak until it stays RingDropDb below the peak.
-%   Ringing frequency: the frequency with the most energy from RingFrom to RingTo after the
-%   band peak (at least RingMinS of that interval inside the window), kept only if that
-%   energy is at least RingSnrDb above the noise floor at that frequency.
+%   Ringing frequency: the strongest local maximum inside the band (not its lowest or highest
+%   frequency) of the energy from RingFrom to RingTo after the band peak (at least RingMinS of
+%   that interval inside the window) that is at least RingSnrDb above the floor there.
 %
-%   Noise floor: the same transform on NoiseWindows windows of the noise recording (as many
-%   as fit without overlapping, after its first NoiseSkip), every NoiseDecim-th sample.
+%   Floor (background): each trial's quiet segment, from QuietFrom after the start of the
+%   recording to QuietGap before its first det-v1 event (for a noise recording, everything
+%   after QuietFrom), through the same transform as the events: up to NoiseWindows windows
+%   as long as an event window, as many as fit without overlapping, every NoiseDecim-th
+%   sample. wavelet_background.csv lists quiet segments of at least QuietMinS, with a Welch
+%   spectrum (WelchSeg-sample Hann segments, half overlapping): band powers in BgBands and
+%   peaks in BgPeakBands.
 
 P.Fmin = 100;               % Hz
 P.Fmax = 10000;             % Hz
@@ -37,9 +42,15 @@ P.RingTo = 0.100;           % s after the band peak
 P.RingMinS = 0.040;         % s
 P.RingSnrDb = 10;
 
-P.NoiseSkip = 1.0;          % s, as det-v1
+P.QuietFrom = 1.0;          % s from the start of the recording, as det-v1
+P.QuietGap = 0.15;          % s before the first det-v1 event
+P.QuietMinS = 0.3;          % s
 P.NoiseWindows = 40;
 P.NoiseDecim = 24;          % 0.5 ms at 48 kHz
+P.WelchSeg = 4800;          % samples: 10 Hz resolution at 48 kHz
+P.BgBands = [4000 5000; 1500 1800];             % Hz
+P.BgPeakBands = [4000 5100; 1500 1800];         % Hz
+P.BgTags = ["4_5khz" "1p5_1p8khz"];
 
 P.RangeDb = 50;             % color range of the scalogram figures
 P.Normalization = "amplitude-corrected |W|: |W| / sqrt(Fa/(2f)), so a steady sine of " + ...

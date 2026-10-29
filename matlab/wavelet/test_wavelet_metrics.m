@@ -7,6 +7,9 @@ function test_wavelet_metrics(opts)
 %      amplitude correction (the largest value over frequency, at every sample of a window).
 %   2. Exponentially decaying 4.5 kHz sines with 20 dB decay times of 10 ms and 40 ms give
 %      ring times in the 2-8 kHz band within 10% of those values.
+%   2b. A decaying 1.9 kHz sine, against a floor of 1 count: its ringing frequency in
+%      500-2000 Hz is within one frequency of 1.9 kHz, and 2-8 kHz reports no peak in band
+%      (there the sine's energy is largest at the band's lowest frequency, which is not a peak).
 %   3. For the drops, the sign of enclosed minus bare level in each band in
 %      wavelet_summary.csv (written by wavelet_conditions) matches comparison.csv. Skipped if
 %      wavelet_summary.csv does not exist yet.
@@ -24,6 +27,7 @@ P = wavelet_params();
 fs = 48000;
 quiet.env_db = -Inf(1, size(P.Bands, 1));
 quiet.psd = zeros(1, P.Nf);
+quiet.bg_pow = zeros(1, size(P.Bands, 1));
 t = (0:round(1.0 * fs) - 1)' / fs;
 t0 = 0.4;
 i0 = round((t0 - P.Pre) * fs) + 1;
@@ -56,6 +60,21 @@ for T20 = [0.010 0.040]
         "ringing frequency %.0f Hz: %s\n", T20 * 1e3, ring, M.ring_status(3), M.ring_hz(3), ...
         verdict(pass));
 end
+
+% 2b. Ringing frequency at a band edge
+unit.env_db = zeros(1, size(P.Bands, 1));
+unit.psd = ones(1, P.Nf);
+unit.bg_pow = ones(1, size(P.Bands, 1));
+tau = 0.040 / log(10);
+x = zeros(size(t));
+x(on) = 1000 * exp(-(t(on) - t0) / tau) .* sin(2 * pi * 1900 * (t(on) - t0));
+[Wc, tw, fr] = wavelet_window(x, fs, i0, i1, P);
+M = wavelet_band_metrics(Wc, tw, fr, t0, unit, P);
+df = fr(2) - fr(1);
+pass = abs(M.ring_hz(2) - 1900) <= df && M.ring_hz_status(3) == "no peak in band";
+ok = ok && pass;
+fprintf("2b. 1.9 kHz sine: ringing frequency %.0f Hz in 500-2000 Hz; 2-8 kHz: %s: %s\n", ...
+    M.ring_hz(2), M.ring_hz_status(3), verdict(pass));
 
 % Shortest ring time per band: a one-sample impulse
 x = zeros(size(t));
