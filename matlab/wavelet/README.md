@@ -85,7 +85,24 @@ plotwt(t(k), x(k), 50, 10000, 300, 2, 'e', 'e', 0.2, 0.2, 'sig')
 
 ## Carpet against wood, bare against enclosed
 
-On 2026-10-21 the enclosure raised the signal on carpet and lowered it on wood. `wavelet_conditions.m` asks whether that is an enclosure resonance (a band that keeps ringing after the impact, in the enclosed recordings only) or a floor effect (the carpet acting as a spring under the base, so longer and lower ringing on carpet in both conditions). From the repo root:
+On 2026-10-21 the enclosure raised the signal on carpet and lowered it on wood. `wavelet_conditions.m` asks whether that is an enclosure resonance (a band that keeps ringing after the impact, in the enclosed recordings only) or a floor effect (the carpet acting as a spring under the base, so longer and lower ringing on carpet in both conditions).
+
+### Summary
+
+Every number here is in `wavelet_summary.csv`; "Results" and "Caveats" below have the detail.
+
+- **Drops on wood:** with the enclosure, the 2-8 kHz ringing moves to about 4 to 5 kHz (medians 4669, 3908 and 4537 Hz at 1, 2 and 3 m, against 2369, 2020 and 2020 Hz bare). Enclosed minus bare, 2-8 kHz goes up 4.7, 12.2 and 13.8 dB and 500-2000 Hz goes down 7.1, 6.1 and 6.7 dB.
+- **Steps on wood show the same, without the drop stand's bounces:** enclosed steps ring at 1590, 1607 and 1590 Hz in 500-2000 Hz and at 4437, 3808 and 4669 Hz in 2-8 kHz; bare steps at 1325, 1474 and 1391 Hz and at 2418, 2550 and 2583 Hz (bare 2-8 kHz at 2 and 3 m from the 1 and 6 steps that resolve). At 1 m every enclosed trial rings longer than every bare one: 35 to 86 ms against 12 to 17 ms in 2-8 kHz (per-trial medians).
+- **Carpet has no ringing band that only the enclosed recordings show:** both conditions ring at 530 to 994 Hz in 500-2000 Hz (per-trial medians), and the enclosure does not move the 2-8 kHz ringing of the drops (3378, 2683 and 3345 Hz enclosed against 3113, 3047 and 3080 Hz bare). Drop levels change in both directions depending on band and radius.
+- **Most of the carpet increase above 500 Hz is noise floor:** carpet steps at 2 and 3 m are only 1.1 to 2.7 dB above noise there, and the enclosed noise floor is 2.2 to 3.0 dB higher than the bare one, about the size of the +2.4 to +4.6 dB enclosed minus bare. The clear carpet increase is 100-500 Hz at 1 m: +5.5 dB for drops and +5.3 dB for steps.
+- **Verdict:** on wood the data strongly support an enclosure resonance: it is in the enclosed recordings only, at every radius, in drops and steps. The carpet-as-spring explanation is only half supported: carpet rings lower in both conditions, but not longer above 500 Hz (steps at 1 m, 500-2000 Hz: 16.4 ms on enclosed carpet against 66.1 ms on enclosed wood).
+- **Inconclusive:** 4 to 5 kHz is also the sensor's datasheet resonance band, so this cannot tell an enclosure mode from the sensor's own resonance driven harder through the enclosure; a tap test on the enclosure alone would.
+- **Inconclusive:** a spring mode of the enclosure on carpet would likely sit below 100 Hz, which this analysis does not see (the 100-500 Hz ringing frequency is at the 100 Hz limit in 15 of 24 groups). Carpet steps do ring a bit longer in that band (at 1 m: 76.9 against 66.6 ms bare, 82.7 against 68.6 ms enclosed), but that can also be the softer foot contact.
+- **Inconclusive:** ring times on wood drops measure the stand's bounces, not the ringing (wood bare 1 m, 2-8 kHz: 128.7 ms ring time, but 9.0 ms until the envelope first falls 20 dB). The wood enclosed ringing also outlasts the 250 ms window, and there are only 3 trials per drop group (4 for wood bare at 1 m).
+
+### Running it
+
+From the repo root:
 
 ```matlab
 addpath('matlab/wavelet')
