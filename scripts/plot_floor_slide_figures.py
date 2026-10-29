@@ -143,12 +143,12 @@ def plot_counts(path: Path, review: list[dict]) -> None:
     fig = Figure(figsize=(11.0, 5.3), layout="constrained")
     axes = fig.subplots(1, len(FLOORS), sharey=True)
     offsets = (-0.12, 0.0, 0.12)
-    for ax, floor in zip(axes, FLOORS):
+    for ax, floor in zip(axes, FLOORS, strict=True):
         ax.axhline(made, color=TEXT_2, linestyle=(0, (5, 4)), linewidth=1.5, zorder=1)
         for i, radius in enumerate(RADII_M):
-            for (condition, color, _), side in zip(CONDITIONS, (-0.2, 0.2)):
+            for (condition, color, _), side in zip(CONDITIONS, (-0.2, 0.2), strict=True):
                 group = trials.get((floor, condition, radius), [])
-                for n, dx in zip(group, offsets):
+                for n, dx in zip(group, offsets, strict=False):
                     ax.plot(i + side + dx, n, "o", markersize=14, color=color,
                             markeredgecolor="white", markeredgewidth=1.5, zorder=3)
         if not any(trials.get((floor, "enclosed", r)) for r in RADII_M):
@@ -232,7 +232,7 @@ def plot_spectra(path: Path, trials: dict, folder: Path) -> None:
     fig = Figure(figsize=(12.4, 4.3), layout="constrained")
     axes = fig.subplots(1, len(RADII_M), sharey=True)
     counts, curves = [], []
-    for ax, radius in zip(axes, RADII_M):
+    for ax, radius in zip(axes, RADII_M, strict=True):
         ax.axvspan(*RESONANCE_BAND_HZ, color=BAND, alpha=0.12, linewidth=0)
         ax.plot(grid, noise_db, color=NOISE, linestyle=(0, (3, 2)), linewidth=2)
         spectra = {}
@@ -268,7 +268,8 @@ def plot_spectra(path: Path, trials: dict, folder: Path) -> None:
     fig.get_layout_engine().set(rect=(0, 0.1, 1, 0.9), wspace=0.06)
     fig.savefig(path, dpi=300, metadata={"Software": None})
 
-    for (radius, spectra), (n_bare, n_enc) in zip(curves, zip(counts[::2], counts[1::2])):
+    pairs = zip(counts[::2], counts[1::2], strict=True)
+    for (radius, spectra), (n_bare, n_enc) in zip(curves, pairs, strict=True):
         diffs = {name: band_db(*spectra["enclosed"], band) - band_db(*spectra["bare"], band)
                  for name, band in (("2-8 kHz", HIGH_BAND_HZ), ("0.5-2 kHz", LOW_BAND_HZ),
                                     ("all, 100 Hz-20 kHz", (F_MIN_HZ, F_MAX_HZ)))}
