@@ -157,7 +157,8 @@ def plot_summary(rows: list[dict], out: Path) -> Path:
                              dpi=150, squeeze=False)
     for (excitation, made), line, row_axes in zip(row_keys, grid, axes, strict=True):
         group = [r for c in line for r in by_cond[c]]
-        radii = sorted({r["distance_m"] for r in group})
+        # Trials without a radius (the toilet trials) form one group with no radius label.
+        radii = sorted({r["distance_m"] for r in group}, key=lambda d: (d is None, d or 0))
         slots = {d: max(sum(r["distance_m"] == d for r in by_cond[c]) for c in line)
                  for d in radii}
         top = max(made, max(r["impacts_found"] for r in group)) * 1.3
@@ -179,10 +180,11 @@ def plot_summary(rows: list[dict], out: Path) -> Path:
                     ax.annotate(text, (x0 + k, found), textcoords="offset points",
                                 xytext=(0, 2), ha="center", va="bottom", fontsize=7,
                                 color=TEXT_2)
-                ticks.append((x0 + (slots[radius] - 1) / 2, f"{radius:g} m"))
+                label = "" if radius is None else f"{radius:g} m"
+                ticks.append((x0 + (slots[radius] - 1) / 2, label))
                 x0 += slots[radius] + 0.8
             ax.axhline(made, color=TEXT_2, linestyle=(0, (5, 4)), linewidth=1.2)
-            ax.set_xticks([p for p, _ in ticks], [lbl for _, lbl in ticks])
+            ax.set_xticks([p for p, lbl in ticks if lbl], [lbl for _, lbl in ticks if lbl])
             ax.set_xlim(-0.7, x0 - 1.1)
             ax.set_ylim(0, top)
             ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -192,8 +194,10 @@ def plot_summary(rows: list[dict], out: Path) -> Path:
                 ax.set_ylabel(f"{excitation}: found\n(dashed: {made} made)", fontsize=8)
             else:
                 ax.tick_params(labelleft=False)
-    fig.suptitle("Events found per trial against impacts made (det-v1), by radius",
-                 x=0.01, ha="left", fontsize=12, color=TEXT)
+    by_radius = any(r["distance_m"] is not None for r in trials)
+    fig.suptitle("Events found per trial against impacts made (det-v1)"
+                 + (", by radius" if by_radius else ""), x=0.01, ha="left", fontsize=12,
+                 color=TEXT)
     fig.tight_layout()
     path = out / "summary_found_vs_made.png"
     fig.savefig(path, bbox_inches="tight")
