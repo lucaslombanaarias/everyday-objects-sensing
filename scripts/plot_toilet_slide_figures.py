@@ -6,7 +6,7 @@ three 300 dpi PNGs to docs/figures/, sized and styled like plot_floor_slide_figu
 is FONT_PT on a 13.33 x 7.5 in slide when inserted at 100%):
 
 - toilet_levels.png: how loud each ice drop and each pee trial is at each sensor position,
-  in dB above the noise baseline, against the det-v1 threshold.
+  in dB above that position's own background, against the det-v1 threshold.
 - toilet_traces.png: what the detector sees, the second ice trial and the second pee trial
   at each position: the 5 ms RMS level over time, with the tagged drops.
 - toilet_spectra.png: the average spectrum of the drops and of the pours at each position,
@@ -17,7 +17,11 @@ trial); a drop's level is its det-v1 peak (the 5 ms RMS above 100 Hz). A pour is
 detection level, smoothed over POUR_SMOOTH_S, is more than POUR_RISE_DB above its level at
 the start of the recording; its level is the median detection level inside it (less
 POUR_TRIM_S at each end). Every trial is measured against the one noise baseline, recorded
-at the base. The numbers the slides quote are printed.
+at the base. toilet_levels.png then subtracts each position's own background: the median,
+over the position's 6 trials, of the median detection level in the trial's quiet stretches
+(after the first SKIP_S, at least QUIET_GAP_S from any det-v1 event and from the pour), so
+each position is measured against its own noise, as a noise baseline recorded there would.
+The numbers the slides quote are printed.
 """
 
 import csv
@@ -58,6 +62,9 @@ EXAMPLE = 2
 POUR_SMOOTH_S = 0.5
 POUR_RISE_DB = 8.0
 POUR_TRIM_S = 0.3
+QUIET_GAP_S = 0.5
+QUIET_MIN_S = 0.2
+"""A trial's quiet stretches count toward its position's background if they add up to this."""
 PRE_S = 0.010
 """A drop's spectrum is a SEGMENT_S Hann window starting this long before its event time."""
 F_MIN_HZ, F_MAX_HZ = 100.0, 10000.0
@@ -74,11 +81,29 @@ def load(folder: Path, trial: str):
     return x.astype(np.float64), fs
 
 
+def events(folder: Path, trial: str) -> list[dict]:
+    with (analysis_folder(folder) / f"events_{trial}.csv").open(encoding="utf-8") as f:
+        return list(csv.DictReader(f))
+
+
 def drops(folder: Path, trial: str) -> list[tuple[float, float]]:
     """(t_s, peak_db) of the events tagged true_impact."""
-    with (analysis_folder(folder) / f"events_{trial}.csv").open(encoding="utf-8") as f:
-        return [(float(r["t_s"]), float(r["peak_db"])) for r in csv.DictReader(f)
-                if r["annotation"] == "true_impact"]
+    return [(float(r["t_s"]), float(r["peak_db"])) for r in events(folder, trial)
+            if r["annotation"] == "true_impact"]
+
+
+def quiet_level(tr: dict, event_times: list[float], span=None) -> float | None:
+    """Median detection level (dB above the baseline) of a trial's quiet stretches, or None
+    if they add up to less than QUIET_MIN_S."""
+    t = tr["rms_t_s"]
+    quiet = t > impacts.SKIP_S
+    for e in event_times:
+        quiet &= np.abs(t - e) > QUIET_GAP_S
+    if span is not None:
+        quiet &= (t < span[0] - QUIET_GAP_S) | (t > span[1] + QUIET_GAP_S)
+    if quiet.sum() < QUIET_MIN_S * impacts.DETECTION.rate_hz:
+        return None
+    return float(np.median(tr["level_db"][quiet]))
 
 
 def pour_span(level_db: np.ndarray, rate: float) -> tuple[float, float]:
@@ -98,7 +123,7 @@ def collect(folder: Path) -> dict:
     out = {"baseline": baseline}
     for pos, _, _ in POSITIONS:
         d = out[pos] = {"drop_db": [], "drop_psd": [], "pour_db": [], "pour_psd": [],
-                        "pour_s": [], "traces": {}}
+                        "pour_s": [], "quiet_db": [], "traces": {}}
         for n in (1, 2, 3):
             ice, pee = f"toilet_{pos}_ice_{n:02d}", f"toilet_{pos}_pour_{n:02d}"
             x, fs = load(folder, ice)
@@ -110,12 +135,16 @@ def collect(folder: Path) -> dict:
             for when, _ in trial_drops:
                 i = int(round((when - PRE_S) * fs))
                 d["drop_psd"].append(_psd(x[i : i + m], fs))
+            tr = impacts.detection_traces(x, fs, baseline)
+            d["quiet_db"].append(quiet_level(tr, [float(e["t_s"]) for e in events(folder, ice)]))
             if n == EXAMPLE:
-                d["traces"]["ice"] = (impacts.detection_traces(x, fs, baseline), trial_drops)
+                d["traces"]["ice"] = (tr, trial_drops)
 
             x, fs = load(folder, pee)
             tr = impacts.detection_traces(x, fs, baseline)
             a, b = pour_span(tr["level_db"], impacts.DETECTION.rate_hz)
+            d["quiet_db"].append(quiet_level(tr, [float(e["t_s"]) for e in events(folder, pee)],
+                                             (a, b)))
             inside = (tr["rms_t_s"] > a + POUR_TRIM_S) & (tr["rms_t_s"] < b - POUR_TRIM_S)
             d["pour_db"].append(float(np.median(tr["level_db"][inside])))
             d["pour_s"].append(b - a)
@@ -124,6 +153,7 @@ def collect(folder: Path) -> dict:
             if n == EXAMPLE:
                 d["traces"]["pee"] = (tr, (a, b))
         d["freqs"] = np.fft.rfftfreq(m, d=1 / fs)
+        d["own_db"] = float(np.median([q for q in d["quiet_db"] if q is not None]))
     m = int(round(SEGMENT_S * fs))
     noise = nx.astype(np.float64)[int(impacts.SKIP_S * fs) :]
     out["noise_psd"] = np.mean([_psd(noise[i : i + m], fs)
@@ -134,10 +164,14 @@ def collect(folder: Path) -> dict:
 def _median_bar(ax, x: float, value: float, width: float = 0.32) -> None:
     ax.plot([x - width, x + width], [value, value], color=TEXT, linewidth=2.5, zorder=4,
             solid_capstyle="round")
-    # A label next to the threshold line goes just under the bar instead of across the line.
-    near = abs(value - impacts.DETECTION.threshold_db) < 3
-    ax.text(x + width + 0.04, value - 0.8 if near else value, f"{value:.0f} dB",
-            va="top" if near else "center", ha="left", fontsize=FONT_PT - 2, color=TEXT)
+    # A label near the threshold line goes on the far side of the bar from the line.
+    gap = value - impacts.DETECTION.threshold_db
+    if abs(gap) < 4:
+        y, va = (value + 0.8, "bottom") if gap >= 0 else (value - 0.8, "top")
+    else:
+        y, va = value, "center"
+    ax.text(x + width + 0.04, y, f"{value:.0f} dB", va=va, ha="left", fontsize=FONT_PT - 2,
+            color=TEXT)
 
 
 def plot_levels(path: Path, data: dict) -> None:
@@ -147,16 +181,18 @@ def plot_levels(path: Path, data: dict) -> None:
     for ax, kind in zip(axes, ("drop", "pour"), strict=True):
         for i, (pos, color, _) in enumerate(POSITIONS):
             d = data[pos]
+            own = d["own_db"]
             if kind == "drop":
                 for k, trial in enumerate(d["drop_db"]):
                     xs = i + (k - 1) * 0.16 + (np.arange(5) - 2) * 0.03
-                    ax.plot(xs, trial, "o", markersize=10, color=color,
+                    ax.plot(xs, np.array(trial) - own, "o", markersize=10, color=color,
                             markeredgecolor="white", markeredgewidth=1.2, zorder=3)
-                _median_bar(ax, i, float(np.median(np.concatenate(d["drop_db"]))))
+                _median_bar(ax, i, float(np.median(np.concatenate(d["drop_db"]))) - own)
             else:
-                ax.plot(i + np.array([-0.14, 0.0, 0.14]), d["pour_db"], "o", markersize=14,
-                        color=color, markeredgecolor="white", markeredgewidth=1.5, zorder=3)
-                _median_bar(ax, i, float(np.median(d["pour_db"])))
+                ax.plot(i + np.array([-0.14, 0.0, 0.14]), np.array(d["pour_db"]) - own, "o",
+                        markersize=14, color=color, markeredgecolor="white",
+                        markeredgewidth=1.5, zorder=3)
+                _median_bar(ax, i, float(np.median(d["pour_db"])) - own)
         ax.axhline(threshold, color=TEXT_2, linestyle=(0, (5, 4)), linewidth=1.5, zorder=1)
         ax.set_xticks(range(len(POSITIONS)), [label for _, _, label in POSITIONS])
         ax.set_xlim(-0.55, len(POSITIONS) - 0.2)
@@ -164,16 +200,19 @@ def plot_levels(path: Path, data: dict) -> None:
         _style_axes(ax)
     axes[0].set_title("Ice drops: each drop's peak", loc="left")
     axes[1].set_title("Pee trials: median over each pour", loc="left")
-    axes[0].set_ylabel("dB above the noise baseline")
+    axes[0].set_ylabel("dB above the position's background")
     axes[0].set_ylim(0, 85)
     axes[0].text(len(POSITIONS) - 0.22, threshold + 1.0, "detection threshold", ha="right",
                  va="bottom", color=TEXT_2, fontsize=FONT_PT - 2)
+    own = ", ".join(f"{label.lower()} {data[pos]['own_db']:+.1f} dB"
+                    for pos, _, label in POSITIONS)
     fig.text(0.0, 0.0, "2026-11-04, sensor taped to a toilet. Left: 15 drops per position (3 "
              "trials of 5 ice cubes, from seat height into the bowl). Right: 3 pee trials per "
-             "position (a cup of\nwater poured slowly). Bar: median. Level: the detector's 5 ms "
-             "RMS above 100 Hz, against the noise recorded at the base.",
-             fontsize=SMALL_PT, color=MUTED, ha="left", va="bottom")
-    fig.get_layout_engine().set(rect=(0, 0.09, 1, 0.91))
+             "position\n(a cup of water poured slowly). Bar: median. Level: the detector's 5 ms "
+             "RMS above 100 Hz, against each position's own background, the median level\n"
+             "between events in its trials (against the noise recorded at the base: "
+             f"{own}).", fontsize=SMALL_PT, color=MUTED, ha="left", va="bottom")
+    fig.get_layout_engine().set(rect=(0, 0.11, 1, 0.89))
     fig.savefig(path, dpi=300, metadata={"Software": None})
 
 
@@ -247,11 +286,15 @@ def plot_spectra(path: Path, data: dict) -> None:
 
 
 def report(data: dict) -> None:
+    print("dB above the base noise recording (and above the position's own background)")
     for pos, _, label in POSITIONS:
         d = data[pos]
-        flat = np.concatenate(d["drop_db"])
-        print(f"{label:12} drops: median {np.median(flat):5.1f} dB, range {flat.min():5.1f} to "
-              f"{flat.max():5.1f}; pours: " + ", ".join(f"{v:4.1f}" for v in d["pour_db"])
+        flat, own = np.concatenate(d["drop_db"]), d["own_db"]
+        print(f"{label:12} own background {own:+.1f} dB (per trial "
+              + ", ".join("-" if q is None else f"{q:+.1f}" for q in d["quiet_db"]) + ")")
+        print(f"{'':12} drops: median {np.median(flat):5.1f} ({np.median(flat) - own:5.1f}) dB, "
+              f"range {flat.min():5.1f} to {flat.max():5.1f}; pours: "
+              + ", ".join(f"{v:4.1f} ({v - own:4.1f})" for v in d["pour_db"])
               + " dB over " + ", ".join(f"{s:3.1f}" for s in d["pour_s"]) + " s")
 
 
