@@ -71,8 +71,7 @@ for p = 1:numel(positions)
     [Wc, t, fr] = wavelet_window(x, fs, i0, i1, P);
     panels(p, 1).A = Wc;
     panels(p, 1).t = (t - d.t_s) * 1e3;                    % ms from the drop
-    panels(p, 1).title = sprintf("%s: ice drop at %.2f s of %s (median of %d)", labels(p), ...
-        d.t_s, d.trial, height(drops));
+    panels(p, 1).title = labels(p);    % which drop and trial: the printed table and README
     rows(2 * p - 1, :) = {labels(p), "ice drop", d.trial, d.t_s, d.peak_db, 0, 0};
 
     % Stream: the start of the steady pour in trial StreamTrial.
@@ -84,8 +83,7 @@ for p = 1:numel(positions)
     [Wc, t, fr] = wavelet_window(x, fs, i0, i1, P);
     panels(p, 2).A = Wc;
     panels(p, 2).t = t - t0;                               % s from the start of the pour
-    panels(p, 2).title = sprintf("%s: stream trial %d, steady pour from %.2f s", labels(p), ...
-        opts.StreamTrial, t0);
+    panels(p, 2).title = labels(p);
     rows(2 * p, :) = {labels(p), "stream", name, t0, NaN, 0, 0};
 end
 
@@ -99,15 +97,12 @@ for k = 1:numel(panels)
     rows{2 * p - 2 + col, 7} = round(fr(c));
 end
 
-method = "Morlet wavelet (Fa = 2)";
-draw(panels, [1 2], fr, ref, opts.RangeDb, 12.4, ...
-    "Ice drop against stream trial at each sensor position: " + method + ", one shared scale", ...
+% Slide figures: titles of a few words, text large enough to read on a slide (FontPt).
+draw(panels, [1 2], fr, ref, opts.RangeDb, [12.4 7.4], "Ice drop vs stream", ...
     fullfile(saveDir, "toilet_wavelet.png"));
-draw(panels, 1, fr, max(peak(:, 1)), opts.RangeDb, 10.0, ...
-    "Ice drop at each sensor position: " + method + ", one shared scale", ...
+draw(panels, 1, fr, max(peak(:, 1)), opts.RangeDb, [10.0 7.2], "Ice drop", ...
     fullfile(saveDir, "toilet_ice_wavelet.png"));
-draw(panels, 2, fr, max(peak(:, 2)), opts.RangeDb, 10.0, ...
-    "Stream trial at each sensor position: " + method + ", one shared scale", ...
+draw(panels, 2, fr, max(peak(:, 2)), opts.RangeDb, [10.0 7.2], "Stream trial", ...
     fullfile(saveDir, "toilet_stream_wavelet.png"));
 
 R = cell2table(rows, "VariableNames", ["position" "kind" "trial" "t_s" "peak_db_detv1" ...
@@ -119,9 +114,14 @@ end
 end
 
 
-function draw(panels, cols, fr, ref, rangeDb, widthIn, heading, path)
-%DRAW The panels in columns cols, rows the positions, on one scale relative to ref.
-fig = figure("Units", "inches", "Position", [0.5 0.5 widthIn 7.0]);
+function draw(panels, cols, fr, ref, rangeDb, sizeIn, heading, path)
+%DRAW The panels in columns cols, rows the positions, on one scale relative to ref. Text is
+%   FontPt in the figure, so at least 14 pt once the figure is shrunk onto a slide.
+FontPt = 19;
+font = {"FontName", "Trebuchet MS"};
+kinds = ["ice drop" "stream"];
+timeLabels = ["Time (ms)" "Time (s)"];
+fig = figure("Units", "inches", "Position", [0.5 0.5 sizeIn]);
 try
     fig.Theme = "light";
 catch
@@ -134,27 +134,33 @@ for p = 1:size(panels, 1)
         [A, tt] = block_max(s.A, s.t, 1400);
         ax = nexttile(tl);
         imagesc(ax, tt, fr / 1000, 20 * log10(A.' / ref));
-        set(ax, "YDir", "normal", "CLim", [-rangeDb 0], "FontName", "Trebuchet MS", ...
-            "FontSize", 13);
+        set(ax, "YDir", "normal", "CLim", [-rangeDb 0], font{:}, "FontSize", FontPt, ...
+            "YTick", [2 6 10]);
         colormap(ax, 1 - pink(256));
-        xline(ax, 0, ":", "Color", [0.35 0.35 0.35], "LineWidth", 1.2);
-        title(ax, s.title, "Interpreter", "none", "FontSize", 12, "FontWeight", "normal");
-        if col == cols(1), ylabel(ax, "Frequency (kHz)"); end
+        xline(ax, 0, ":", "Color", [0.35 0.35 0.35], "LineWidth", 1.5);
+        heading_p = s.title;
+        if numel(cols) > 1
+            heading_p = s.title + ": " + kinds(col);
+        end
+        title(ax, heading_p, "Interpreter", "none", "FontSize", FontPt + 1, ...
+            "FontWeight", "normal");
+        if col == 1
+            set(ax, "XTick", [-100 0 100 200]);
+        else
+            set(ax, "XTick", [-0.5 0 0.5 1]);
+        end
         if p == size(panels, 1)
-            if col == 1
-                xlabel(ax, "Time from the drop (ms)");
-            else
-                xlabel(ax, "Time from the start of the steady pour (s)");
-            end
+            xlabel(ax, timeLabels(col));
         end
     end
 end
+ylabel(tl, "Frequency (kHz)", font{:}, "FontSize", FontPt + 1);
 cb = colorbar(ax);
 cb.Layout.Tile = "east";
-cb.Label.String = "dB re the largest value in any panel";
+cb.Label.String = "Level (dB)";
 cb.FontName = "Trebuchet MS";
-cb.FontSize = 13;
-title(tl, heading, "FontName", "Trebuchet MS", "FontSize", 15);
+cb.FontSize = FontPt;
+title(tl, heading, font{:}, "FontSize", FontPt + 3);
 exportgraphics(fig, path, "Resolution", 300);
 fprintf("Saved %s\n", path);
 close(fig);
