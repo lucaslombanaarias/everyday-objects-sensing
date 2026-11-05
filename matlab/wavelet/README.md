@@ -11,6 +11,7 @@ Wavelet transform code from Luis M. Baldelomar Pinto (Prof. Vakakis's lab, LNDVL
 | `wavelet_conditions.m` | The carpet against wood, bare against enclosed comparison of all the 2026-10-21 drops and steps: band levels, ring times and ringing frequencies per event and per group, each measured against its own trial's background, and the background spectra, written to CSVs, with figures. See [below](#carpet-against-wood-bare-against-enclosed). |
 | `wavelet_window.m`, `wavelet_band_metrics.m`, `wavelet_params.m` | Used by `wavelet_conditions.m`: the transform of one window, the metrics of one window, and every parameter in one place. |
 | `test_wavelet_metrics.m` | Checks the metrics on synthetic signals and against `comparison.csv`. |
+| `wavelet_toilet.m` | The 2026-11-04 toilet trials: an ice drop (the median of the 15 tagged drops) and a pee trial at each sensor position, on one shared dB scale, saved as the slide figure `docs/figures/toilet_wavelet.png`. See [below](#toilet-ice-drop-against-pee). |
 
 ## Comparing floors
 
@@ -313,3 +314,25 @@ Walking steps, ringing:
 - **Normalization.** Levels compare only within a band. The overall peak frequency leans high for the same reason.
 - **Few trials.** Three trials per drop group (four for wood bare at 1 m), and 20 to 31 steps from two or three trials per walking group. Differences smaller than the spread between trials (such as the two in "Validation") are not established.
 - **Steps are not impulses.** A footstep's contact lasts tens of ms, so step ring times include the contact as well as the ringing.
+
+## Toilet: ice drop against pee
+
+```matlab
+addpath('matlab/wavelet')
+wavelet_toilet()      % about a minute; prints the table below and saves docs/figures/toilet_wavelet.png
+```
+
+Rows are the sensor positions of 2026-11-04 (base, behind the seat, tank lid). The left column is the ice drop with the median det-v1 level of the position's 15 tagged drops, 100 ms before to 250 ms after it, as in `wavelet_conditions.m`. The right column is pee trial 2 at that position, from 0.5 s before the steady pour starts to 1.5 s after (found as in `scripts/plot_toilet_slide_figures.py`, with an FFT high-pass so no toolbox is needed; on the tank lid a first splash comes about 0.5 s earlier). Same transform and amplitude correction as above, all six panels on one scale relative to the largest value, 70 dB range. Run on 2026-11-05:
+
+| Position | Kind | Trial | Time (s) | det-v1 peak (dB) | Peak re largest (dB) | Peak at (Hz) |
+|---|---|---|---|---|---|---|
+| Base | ice drop | `toilet_base_ice_01` | 11.713 | 59.5 | 0 | 4636 |
+| Base | pee | `toilet_base_pour_02` | 1.46 | | -5.8 | 4570 |
+| Behind seat | ice drop | `toilet_behindseat_ice_01` | 17.297 | 50.55 | -10.1 | 4404 |
+| Behind seat | pee | `toilet_behindseat_pour_02` | 1.078 | | -23.0 | 3279 |
+| Tank lid | ice drop | `toilet_tanklid_ice_02` | 1.103 | 38.45 | -28.2 | 365 |
+| Tank lid | pee | `toilet_tanklid_pour_02` | 1.215 | | -37.7 | 4669 |
+
+A drop is a broadband stripe up to 10 kHz at impact, with a second burst 70 to 200 ms later (the cube or its splash hitting again) and ringing at 4 to 5 kHz and around 2 kHz. A pour is a dense run of small broadband splashes, mostly 1 to 6 kHz, with no single impact standing out. The base is the strongest position and the tank lid the weakest, for both. At the base the background before the pour is a steady band at 4 to 5 kHz, the sensor's datasheet resonance band, which is where the hiss described in `data/controlled/README.md` sits. The panel peaks are single values of the scalogram and fall at the resonance in 4 of 6 panels, so they say more about the sensor than about the impact.
+
+![Ice drop against pee trial at each sensor position](../../docs/figures/toilet_wavelet.png)
