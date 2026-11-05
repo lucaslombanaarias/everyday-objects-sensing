@@ -1,6 +1,6 @@
 {
   "trial_id": "toilet_behindseat_ice_03",
-  "analyzed_at": "2026-11-04T23:08:26-06:00",
+  "analyzed_at": "2026-11-04T23:26:16-06:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,
@@ -22,11 +22,11 @@
   "impacts_found": 6,
   "difference": 1,
   "edge_events": 0,
-  "true_impact": 0,
+  "true_impact": 5,
   "walk_in_out": 0,
-  "other_noise": 0,
+  "other_noise": 1,
   "unknown": 0,
-  "unreviewed": 6,
+  "unreviewed": 0,
   "baseline_used": "toilet_base_noise_01",
   "baseline_recorded": "toilet_base_noise_01",
   "baseline_mismatch": false,
@@ -46,7 +46,7 @@
       "timestamp": "2026-11-04T19:08:29.269-06:00",
       "peak_db": 43.83,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 2,
@@ -54,7 +54,7 @@
       "timestamp": "2026-11-04T19:08:31.908-06:00",
       "peak_db": 48.57,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 3,
@@ -62,7 +62,7 @@
       "timestamp": "2026-11-04T19:08:32.470-06:00",
       "peak_db": 18.04,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 4,
@@ -70,7 +70,7 @@
       "timestamp": "2026-11-04T19:08:34.580-06:00",
       "peak_db": 49.38,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 5,
@@ -78,7 +78,7 @@
       "timestamp": "2026-11-04T19:08:37.163-06:00",
       "peak_db": 26.87,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 6,
@@ -86,7 +86,7 @@
       "timestamp": "2026-11-04T19:08:39.461-06:00",
       "peak_db": 41.93,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     }
   ]
 }

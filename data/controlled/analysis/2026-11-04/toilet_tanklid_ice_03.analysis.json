@@ -1,6 +1,6 @@
 {
   "trial_id": "toilet_tanklid_ice_03",
-  "analyzed_at": "2026-11-04T23:08:26-06:00",
+  "analyzed_at": "2026-11-04T23:26:16-06:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,
@@ -22,11 +22,11 @@
   "impacts_found": 8,
   "difference": 3,
   "edge_events": 0,
-  "true_impact": 0,
+  "true_impact": 5,
   "walk_in_out": 0,
-  "other_noise": 0,
+  "other_noise": 3,
   "unknown": 0,
-  "unreviewed": 8,
+  "unreviewed": 0,
   "baseline_used": "toilet_base_noise_01",
   "baseline_recorded": "toilet_base_noise_01",
   "baseline_mismatch": false,
@@ -46,7 +46,7 @@
       "timestamp": "2026-11-04T19:17:27.527-06:00",
       "peak_db": 47.36,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 2,
@@ -54,7 +54,7 @@
       "timestamp": "2026-11-04T19:17:27.928-06:00",
       "peak_db": 15.05,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 3,
@@ -62,7 +62,7 @@
       "timestamp": "2026-11-04T19:17:28.203-06:00",
       "peak_db": 41.88,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 4,
@@ -70,7 +70,7 @@
       "timestamp": "2026-11-04T19:17:30.278-06:00",
       "peak_db": 43.04,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 5,
@@ -78,7 +78,7 @@
       "timestamp": "2026-11-04T19:17:30.832-06:00",
       "peak_db": 23.03,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 6,
@@ -86,7 +86,7 @@
       "timestamp": "2026-11-04T19:17:31.545-06:00",
       "peak_db": 25.03,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 7,
@@ -94,7 +94,7 @@
       "timestamp": "2026-11-04T19:17:32.452-06:00",
       "peak_db": 48.37,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 8,
@@ -102,7 +102,7 @@
       "timestamp": "2026-11-04T19:17:34.488-06:00",
       "peak_db": 36.68,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     }
   ]
 }

@@ -1,6 +1,6 @@
 {
   "trial_id": "toilet_tanklid_pour_01",
-  "analyzed_at": "2026-11-04T23:08:26-06:00",
+  "analyzed_at": "2026-11-04T23:26:16-06:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,

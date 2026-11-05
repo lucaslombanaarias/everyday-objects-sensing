@@ -1,6 +1,6 @@
 {
   "trial_id": "toilet_tanklid_ice_02",
-  "analyzed_at": "2026-11-04T23:08:26-06:00",
+  "analyzed_at": "2026-11-04T23:26:16-06:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,
@@ -22,11 +22,11 @@
   "impacts_found": 7,
   "difference": 2,
   "edge_events": 0,
-  "true_impact": 0,
+  "true_impact": 5,
   "walk_in_out": 0,
-  "other_noise": 0,
+  "other_noise": 2,
   "unknown": 0,
-  "unreviewed": 7,
+  "unreviewed": 0,
   "baseline_used": "toilet_base_noise_01",
   "baseline_recorded": "toilet_base_noise_01",
   "baseline_mismatch": false,
@@ -46,7 +46,7 @@
       "timestamp": "2026-11-04T19:14:45.109-06:00",
       "peak_db": 38.45,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 2,
@@ -54,7 +54,7 @@
       "timestamp": "2026-11-04T19:14:47.797-06:00",
       "peak_db": 32.58,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 3,
@@ -62,7 +62,7 @@
       "timestamp": "2026-11-04T19:14:48.213-06:00",
       "peak_db": 26.7,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     },
     {
       "event": 4,
@@ -70,7 +70,7 @@
       "timestamp": "2026-11-04T19:14:50.161-06:00",
       "peak_db": 34.22,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 5,
@@ -78,7 +78,7 @@
       "timestamp": "2026-11-04T19:14:52.739-06:00",
       "peak_db": 38.96,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 6,
@@ -86,7 +86,7 @@
       "timestamp": "2026-11-04T19:14:55.024-06:00",
       "peak_db": 51.05,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "true_impact"
     },
     {
       "event": 7,
@@ -94,7 +94,7 @@
       "timestamp": "2026-11-04T19:14:55.647-06:00",
       "peak_db": 17.01,
       "flag": "",
-      "annotation": "unreviewed"
+      "annotation": "other_noise"
     }
   ]
 }
