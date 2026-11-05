@@ -23,7 +23,7 @@
   "baseline_noise_id": "toilet_base_noise_01",
   "sensor_serial": null,
   "ambient_conditions": null,
-  "notes": "Water pour (pee trial), one cup of water poured slowly from seat height into the bowl, toilet, sensor at the base of the toilet under the seat, trial 1.",
+  "notes": "Water pour (stream trial), one cup of water poured slowly from seat height into the bowl, toilet, sensor at the base of the toilet under the seat, trial 1.",
   "fw_commit": "79444c2",
   "repo_commit": "e697202788ed83ba7080d791440429e5a0d0309e",
   "repo_dirty": false,
@@ -56,5 +56,5 @@
     "scipy": "1.18.1",
     "pyserial": "3.5"
   },
-  "edit_note": "2026-11-04: renamed from toilet_base_0m_02 to toilet_base_pour_02 and the metadata filled in from the operator's description, on the operator's instruction; as recorded: excitation ball_drop, distance 0.0 m, 5 impacts made, notes 'THIS IS PEEING 2'; renumbered from toilet_base_pour_02 to toilet_base_pour_01 when the first base pour (recorded as toilet_base_0m_01 at 18:44:46, then redone) was removed, on the operator's instruction"
+  "edit_note": "2026-11-04: renamed from toilet_base_0m_02 to toilet_base_pour_02 and the metadata filled in from the operator's description, on the operator's instruction; as recorded: excitation ball_drop, distance 0.0 m, 5 impacts made, notes 'THIS IS PEEING 2'; renumbered from toilet_base_pour_02 to toilet_base_pour_01 when the first base pour (recorded as toilet_base_0m_01 at 18:44:46, then redone) was removed, on the operator's instruction; notes: \"pee trial\" renamed \"stream trial\", on the operator's instruction"
 }

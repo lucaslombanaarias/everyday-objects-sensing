@@ -1,37 +1,43 @@
 function varargout = wavelet_toilet(opts)
-%WAVELET_TOILET Scalograms of an ice drop and a pee trial at each toilet sensor position.
+%WAVELET_TOILET Scalograms of an ice drop and a stream trial at each toilet sensor position.
 %
 %   wavelet_toilet()
-%   R = wavelet_toilet(RangeDb=60, SaveAs="toilet_wavelet.png")
+%   R = wavelet_toilet(RangeDb=60, SaveDir="figures")
 %
-%   Run from the repo root with matlab/wavelet on the path. The 2026-11-04 toilet trials:
-%   rows are the sensor positions (base, behind the seat, tank lid), columns an ice drop and a
-%   pee trial, all six panels on one dB scale (relative to the largest value in any panel),
-%   so colors compare across positions and between ice and pee.
+%   Run from the repo root with matlab/wavelet on the path. The 2026-11-04 toilet trials, rows
+%   the sensor positions (base, behind the seat, tank lid). Saves three 300 dpi slide figures
+%   to SaveDir (default docs/figures):
+%
+%   - toilet_wavelet.png: an ice drop and a stream trial side by side, all six panels on one
+%     dB scale (relative to the largest value in any of them), so colors compare across
+%     positions and between ice and stream.
+%   - toilet_ice_wavelet.png and toilet_stream_wavelet.png: one column each, on a scale
+%     shared by its three positions.
 %
 %   - Ice drop: of the 15 drops tagged true_impact at that position (3 trials of 5), the one
 %     with the median det-v1 peak_db; window Pre before its event time to Post after it, as
 %     in wavelet_conditions (wavelet_params).
-%   - Pee trial: trial PeeTrial at that position, from PourPre before the steady pour starts
-%     to PourPost after. The steady pour starts where the 5 ms RMS above 100 Hz, in dB and
-%     averaged over 0.5 s, first rises PourRiseDb above its level 0.1 to 0.6 s into the
-%     recording, as in scripts/plot_toilet_slide_figures.py; a first splash can come before
-%     it (on the tank lid, about 0.5 s before).
+%   - Stream trial (a cup of water poured slowly into the bowl, trial IDs
+%     toilet_<position>_pour_<nn>): trial StreamTrial at that position, from PourPre before
+%     the steady pour starts to PourPost after. The steady pour starts where the 5 ms RMS
+%     above 100 Hz, in dB and averaged over 0.5 s, first rises PourRiseDb above its level 0.1
+%     to 0.6 s into the recording, as in scripts/plot_toilet_slide_figures.py; a first
+%     splash can come before it (on the tank lid, about 0.5 s before).
 %
 %   Transform: freq_inst_morlet through wavelet_window (100 Hz to 10 kHz, 300 frequencies,
 %   Fa = 2, 0.1 s of real signal on each side, amplitude-corrected so a sine of amplitude A
-%   reads A at its frequency). Saves a 300 dpi slide figure to docs/figures/ and returns the
-%   table it prints.
+%   reads A at its frequency). Returns the table it prints; peak_db_re_ref is relative to the
+%   largest value in any of the six panels.
 
 arguments
     opts.Date (1,1) string = "2026-11-04"
     opts.Root (1,1) string = pwd
-    opts.PeeTrial (1,1) double {mustBeInteger, mustBePositive} = 2
+    opts.StreamTrial (1,1) double {mustBeInteger, mustBePositive} = 2
     opts.PourPre (1,1) double {mustBePositive} = 0.5
     opts.PourPost (1,1) double {mustBePositive} = 1.5
     opts.PourRiseDb (1,1) double {mustBePositive} = 8
     opts.RangeDb (1,1) double {mustBePositive} = 70
-    opts.SaveAs (1,1) string = ""
+    opts.SaveDir (1,1) string = ""
 end
 
 P = wavelet_params();
@@ -39,9 +45,9 @@ positions = ["base" "behindseat" "tanklid"];
 labels = ["Base" "Behind seat" "Tank lid"];
 raw = fullfile(opts.Root, "data", "controlled", "raw", opts.Date);
 ana = fullfile(opts.Root, "data", "controlled", "analysis", opts.Date);
-saveAs = opts.SaveAs;
-if strlength(saveAs) == 0
-    saveAs = fullfile(opts.Root, "docs", "figures", "toilet_wavelet.png");
+saveDir = opts.SaveDir;
+if strlength(saveDir) == 0
+    saveDir = fullfile(opts.Root, "docs", "figures");
 end
 
 panels = struct("A", {}, "t", {}, "title", {});
@@ -69,8 +75,8 @@ for p = 1:numel(positions)
         d.t_s, d.trial, height(drops));
     rows(2 * p - 1, :) = {labels(p), "ice drop", d.trial, d.t_s, d.peak_db, 0, 0};
 
-    % Pee: the start of the pour in trial PeeTrial.
-    name = sprintf("toilet_%s_pour_%02d", positions(p), opts.PeeTrial);
+    % Stream: the start of the steady pour in trial StreamTrial.
+    name = sprintf("toilet_%s_pour_%02d", positions(p), opts.StreamTrial);
     [x, fs] = load_counts(raw, name);
     t0 = pour_start(x, fs, opts.PourRiseDb);
     i0 = max(1, round((t0 - opts.PourPre) * fs) + 1);
@@ -78,39 +84,63 @@ for p = 1:numel(positions)
     [Wc, t, fr] = wavelet_window(x, fs, i0, i1, P);
     panels(p, 2).A = Wc;
     panels(p, 2).t = t - t0;                               % s from the start of the pour
-    panels(p, 2).title = sprintf("%s: pee trial %d, steady pour from %.2f s", labels(p), ...
-        opts.PeeTrial, t0);
-    rows(2 * p, :) = {labels(p), "pee", name, t0, NaN, 0, 0};
+    panels(p, 2).title = sprintf("%s: stream trial %d, steady pour from %.2f s", labels(p), ...
+        opts.StreamTrial, t0);
+    rows(2 * p, :) = {labels(p), "stream", name, t0, NaN, 0, 0};
 end
 
-ref = max(arrayfun(@(s) max(s.A(:)), panels(:)));         % largest value in any panel
+peak = arrayfun(@(s) max(s.A(:)), panels);                 % positions x [ice stream]
+ref = max(peak(:));                                        % largest value in any panel
 for k = 1:numel(panels)
     [pk, i] = max(panels(k).A(:));
-    [r, c] = ind2sub(size(panels(k).A), i);
+    [~, c] = ind2sub(size(panels(k).A), i);
     [p, col] = ind2sub(size(panels), k);
     rows{2 * p - 2 + col, 6} = round(20 * log10(pk / ref), 1);
     rows{2 * p - 2 + col, 7} = round(fr(c));
 end
 
-fig = figure("Name", "Toilet wavelet", "Units", "inches", "Position", [0.5 0.5 12.4 7.0]);
+method = "Morlet wavelet (Fa = 2)";
+draw(panels, [1 2], fr, ref, opts.RangeDb, 12.4, ...
+    "Ice drop against stream trial at each sensor position: " + method + ", one shared scale", ...
+    fullfile(saveDir, "toilet_wavelet.png"));
+draw(panels, 1, fr, max(peak(:, 1)), opts.RangeDb, 10.0, ...
+    "Ice drop at each sensor position: " + method + ", one shared scale", ...
+    fullfile(saveDir, "toilet_ice_wavelet.png"));
+draw(panels, 2, fr, max(peak(:, 2)), opts.RangeDb, 10.0, ...
+    "Stream trial at each sensor position: " + method + ", one shared scale", ...
+    fullfile(saveDir, "toilet_stream_wavelet.png"));
+
+R = cell2table(rows, "VariableNames", ["position" "kind" "trial" "t_s" "peak_db_detv1" ...
+    "peak_db_re_ref" "peak_hz"]);
+disp(R)
+if nargout > 0
+    varargout{1} = R;
+end
+end
+
+
+function draw(panels, cols, fr, ref, rangeDb, widthIn, heading, path)
+%DRAW The panels in columns cols, rows the positions, on one scale relative to ref.
+fig = figure("Units", "inches", "Position", [0.5 0.5 widthIn 7.0]);
 try
     fig.Theme = "light";
 catch
 end
-tl = tiledlayout(fig, numel(positions), 2, "TileSpacing", "compact", "Padding", "compact");
-for p = 1:numel(positions)
-    for col = 1:2
+tl = tiledlayout(fig, size(panels, 1), numel(cols), "TileSpacing", "compact", ...
+    "Padding", "compact");
+for p = 1:size(panels, 1)
+    for col = cols
         s = panels(p, col);
         [A, tt] = block_max(s.A, s.t, 1400);
         ax = nexttile(tl);
         imagesc(ax, tt, fr / 1000, 20 * log10(A.' / ref));
-        set(ax, "YDir", "normal", "CLim", [-opts.RangeDb 0], "FontName", "Trebuchet MS", ...
+        set(ax, "YDir", "normal", "CLim", [-rangeDb 0], "FontName", "Trebuchet MS", ...
             "FontSize", 13);
         colormap(ax, 1 - pink(256));
         xline(ax, 0, ":", "Color", [0.35 0.35 0.35], "LineWidth", 1.2);
         title(ax, s.title, "Interpreter", "none", "FontSize", 12, "FontWeight", "normal");
-        if col == 1, ylabel(ax, "Frequency (kHz)"); end
-        if p == numel(positions)
+        if col == cols(1), ylabel(ax, "Frequency (kHz)"); end
+        if p == size(panels, 1)
             if col == 1
                 xlabel(ax, "Time from the drop (ms)");
             else
@@ -124,17 +154,10 @@ cb.Layout.Tile = "east";
 cb.Label.String = "dB re the largest value in any panel";
 cb.FontName = "Trebuchet MS";
 cb.FontSize = 13;
-title(tl, "Ice drop against pee trial at each sensor position: Morlet wavelet " + ...
-    "(Fa = 2), one shared scale", "FontName", "Trebuchet MS", "FontSize", 15);
-
-R = cell2table(rows, "VariableNames", ["position" "kind" "trial" "t_s" "peak_db_detv1" ...
-    "peak_db_re_ref" "peak_hz"]);
-disp(R)
-exportgraphics(fig, saveAs, "Resolution", 300);
-fprintf("Saved %s\n", saveAs);
-if nargout > 0
-    varargout{1} = R;
-end
+title(tl, heading, "FontName", "Trebuchet MS", "FontSize", 15);
+exportgraphics(fig, path, "Resolution", 300);
+fprintf("Saved %s\n", path);
+close(fig);
 end
 
 
