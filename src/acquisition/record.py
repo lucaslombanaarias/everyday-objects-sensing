@@ -38,7 +38,11 @@ DEFAULT_OUT_DIR = REPO_ROOT / "data" / "raw"
 FIRMWARE_DIR = "firmware/vpu_pcm_stream"
 META_VERSION = 2
 """Sidecars without meta_version were written before the fields below were added."""
-EXCITATIONS = ("drop_stand", "ball_drop", "single_step", "double_step", "walking", "stomp")
+EXCITATIONS = ("drop_stand", "ball_drop", "single_step", "double_step", "walking", "stomp",
+               "ice_drop", "water_pour")
+UNCOUNTED = ("water_pour",)
+"""Excitations that are not a number of impacts (a continuous pour): impacts made is not
+required for them and is left null."""
 MOUNTS = ("tape", "putty_wax", "loose", "preloaded")
 
 
@@ -186,6 +190,8 @@ def validate_meta(meta: dict) -> list[str]:
     kind = (meta.get("excitation") or {}).get("type")
     if kind not in EXCITATIONS:
         problems.append(f"excitation must be one of {', '.join(EXCITATIONS)} (got {kind!r})")
+    if kind in UNCOUNTED:
+        return problems
     made = meta.get("impacts_made")
     if not isinstance(made, int) or isinstance(made, bool) or made < 1:
         problems.append("impacts made is required: the number of impacts made, 1 or more")
@@ -374,7 +380,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument("--tip")
     p.add_argument("--impacts", type=int,
                    help="number of footsteps, stomps or drops made during the trial "
-                        "(required unless --noise-only)")
+                        "(required unless --noise-only or a water_pour)")
     p.add_argument("--mount-method", help=f"one of {', '.join(MOUNTS)} (required)")
     p.add_argument("--preload", help="e.g. mass on top of the sensor")
     p.add_argument("--sensor-serial")

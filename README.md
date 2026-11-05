@@ -60,8 +60,8 @@ python -m acquisition.record --port COM3 --trial-id d1_noise_01 --duration 30 --
 The recorder refuses to start (before opening the port) unless the trial has:
 
 - `--mount-method`: `tape`, `putty_wax`, `loose` or `preloaded`, on every trial.
-- `--excitation-type`: `drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking` or `stomp`, unless `--noise-only`.
-- `--impacts`: the number of impacts made, 1 or more, unless `--noise-only` (noise-only trials record 0).
+- `--excitation-type`: `drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking`, `stomp`, `ice_drop` (ice cubes dropped into a toilet bowl) or `water_pour` (water poured into a toilet bowl, the pee trials), unless `--noise-only`.
+- `--impacts`: the number of impacts made, 1 or more, unless `--noise-only` (noise-only trials record 0) or `water_pour` (a pour is not a number of impacts; impacts made stays null).
 
 Optional: `--excitation-point` (the fixed impact point ID on this floor), `--distance-m` (the sensor radius, impact point to sensor center), `--drop-height-cm` and `--tip`, `--floor-material`, and `--baseline-noise-id` (the noise-only trial recorded as this block's baseline). Sidecars written before these fields existed still load: missing fields read as null, and old values such as excitation `footsteps` are kept as they are.
 
