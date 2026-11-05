@@ -97,12 +97,11 @@ for k = 1:numel(panels)
     rows{2 * p - 2 + col, 7} = round(fr(c));
 end
 
-% Slide figures: titles of a few words, text large enough to read on a slide (FontPt).
-draw(panels, [1 2], fr, ref, opts.RangeDb, [12.4 7.4], "Ice drop vs stream", ...
-    fullfile(saveDir, "toilet_wavelet.png"));
-draw(panels, 1, fr, max(peak(:, 1)), opts.RangeDb, [10.0 7.2], "Ice drop", ...
+% Slide figures, drawn at about the size they fill on a 13.33 x 7.5 in slide.
+draw(panels, [1 2], fr, ref, opts.RangeDb, [10.0 5.8], fullfile(saveDir, "toilet_wavelet.png"));
+draw(panels, 1, fr, max(peak(:, 1)), opts.RangeDb, [7.0 5.8], ...
     fullfile(saveDir, "toilet_ice_wavelet.png"));
-draw(panels, 2, fr, max(peak(:, 2)), opts.RangeDb, [10.0 7.2], "Stream trial", ...
+draw(panels, 2, fr, max(peak(:, 2)), opts.RangeDb, [7.0 5.8], ...
     fullfile(saveDir, "toilet_stream_wavelet.png"));
 
 R = cell2table(rows, "VariableNames", ["position" "kind" "trial" "t_s" "peak_db_detv1" ...
@@ -114,12 +113,14 @@ end
 end
 
 
-function draw(panels, cols, fr, ref, rangeDb, sizeIn, heading, path)
-%DRAW The panels in columns cols, rows the positions, on one scale relative to ref. Text is
-%   FontPt in the figure, so at least 14 pt once the figure is shrunk onto a slide.
-FontPt = 19;
+function draw(panels, cols, fr, ref, rangeDb, sizeIn, path)
+%DRAW The panels in columns cols, rows the positions, on one scale relative to ref. Drawn at
+%   about the size it fills on a slide, with as few words as possible: the kind of event over
+%   each column, the position beside each row, "kHz" on the top frequency tick, and the time
+%   unit under each column. Smallest text FontPt.
+FontPt = 20;
 font = {"FontName", "Trebuchet MS"};
-kinds = ["ice drop" "stream"];
+kinds = ["Ice drop" "Stream"];
 timeLabels = ["Time (ms)" "Time (s)"];
 fig = figure("Units", "inches", "Position", [0.5 0.5 sizeIn]);
 try
@@ -135,32 +136,38 @@ for p = 1:size(panels, 1)
         ax = nexttile(tl);
         imagesc(ax, tt, fr / 1000, 20 * log10(A.' / ref));
         set(ax, "YDir", "normal", "CLim", [-rangeDb 0], font{:}, "FontSize", FontPt, ...
-            "YTick", [2 6 10]);
+            "YTick", [2 6 10], "YTickLabel", ["2" "6" "10 kHz"], "TickLength", [0.005 0.005]);
         colormap(ax, 1 - pink(256));
         xline(ax, 0, ":", "Color", [0.35 0.35 0.35], "LineWidth", 1.5);
-        heading_p = s.title;
-        if numel(cols) > 1
-            heading_p = s.title + ": " + kinds(col);
+        if p == 1
+            title(ax, kinds(col), "FontSize", FontPt + 4, "FontWeight", "normal");
         end
-        title(ax, heading_p, "Interpreter", "none", "FontSize", FontPt + 1, ...
-            "FontWeight", "normal");
-        if col == 1
-            set(ax, "XTick", [-100 0 100 200]);
+        if col == cols(1)
+            ylabel(ax, s.title, "Rotation", 0, "HorizontalAlignment", "right", ...
+                "VerticalAlignment", "middle", "FontSize", FontPt + 2);
         else
-            set(ax, "XTick", [-0.5 0 0.5 1]);
+            set(ax, "YTickLabel", []);      % same frequencies as the column on the left
         end
+        if col == 1
+            set(ax, "XTick", [0 100 200]);
+        else
+            set(ax, "XTick", [0 0.5 1]);
+        end
+        set(ax, "XTickLabelRotation", 0);
         if p == size(panels, 1)
-            xlabel(ax, timeLabels(col));
+            xlabel(ax, timeLabels(col), "FontSize", FontPt + 2);
+        else
+            set(ax, "XTickLabel", []);
         end
     end
 end
-ylabel(tl, "Frequency (kHz)", font{:}, "FontSize", FontPt + 1);
 cb = colorbar(ax);
 cb.Layout.Tile = "east";
 cb.Label.String = "Level (dB)";
+cb.Ticks = -60:20:0;
 cb.FontName = "Trebuchet MS";
 cb.FontSize = FontPt;
-title(tl, heading, font{:}, "FontSize", FontPt + 3);
+cb.Label.FontSize = FontPt + 2;
 exportgraphics(fig, path, "Resolution", 300);
 fprintf("Saved %s\n", path);
 close(fig);
