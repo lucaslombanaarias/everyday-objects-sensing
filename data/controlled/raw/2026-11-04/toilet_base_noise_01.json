@@ -1,0 +1,87 @@
+{
+  "meta_version": 2,
+  "trial_id": "toilet_base_noise_01",
+  "date": "2026-11-04",
+  "start_time": "2026-11-04T18:36:38.112-06:00",
+  "noise_only": true,
+  "operator": null,
+  "floor_material": "toilet",
+  "floor_location": "base of the toilet, under the seat",
+  "distance_m": null,
+  "excitation": {
+    "type": "none",
+    "mass_g": null,
+    "drop_height_cm": null,
+    "tip": null
+  },
+  "excitation_point_id": null,
+  "impacts_made": 0,
+  "sensor_mount": {
+    "method": "tape",
+    "preload": null
+  },
+  "baseline_noise_id": null,
+  "sensor_serial": null,
+  "ambient_conditions": null,
+  "notes": "Noise only, toilet, sensor at the base of the toilet under the seat. The last 3.5 s, with two impacts in them, are cropped (see cropped).",
+  "fw_commit": "79444c2",
+  "repo_commit": "e697202788ed83ba7080d791440429e5a0d0309e",
+  "repo_dirty": false,
+  "fw_source_commit": "79444c2eaed21e4b85dc5679db032de83f39696f",
+  "fs_hz": 48000.0,
+  "port": "COM5",
+  "requested_duration_s": 25.028,
+  "cropped": {
+    "kept_s": [
+      0.0,
+      21.4987
+    ],
+    "kept_samples": 1031936,
+    "original_samples": 1198464,
+    "original_duration_s": 24.968,
+    "reason": "two impacts at 21.95 s and 22.56 s, with a smaller one at 21.79 s, at the end of the noise-only recording; everything before 21.79 s stays within 3.5 dB of the median level",
+    "cropped_at": "2026-11-04T18:40:04-06:00",
+    "original_files": "uncropped/toilet_noise_01.json",
+    "original_checks": {
+      "frames": 9363,
+      "samples": 1198464,
+      "crc_errors": 0,
+      "skipped_bytes_after_first_frame": 0,
+      "counter_gaps": 0,
+      "missing_samples": 0,
+      "out_of_order_frames": 0,
+      "device_overflow_events": 0,
+      "clipped_samples": 0,
+      "nominal_fs_hz": 48000.0,
+      "measured_fs_hz": 48142.99924627168,
+      "fs_within_tolerance": true,
+      "ok": true
+    }
+  },
+  "checks": {
+    "frames": 8062,
+    "samples": 1031936,
+    "crc_errors": 0,
+    "skipped_bytes_after_first_frame": 0,
+    "counter_gaps": 0,
+    "missing_samples": 0,
+    "out_of_order_frames": 0,
+    "device_overflow_events": 0,
+    "clipped_samples": 0,
+    "nominal_fs_hz": 48000.0,
+    "measured_fs_hz": 47925.35234028539,
+    "fs_within_tolerance": true,
+    "ok": true
+  },
+  "files": {
+    "csv": "toilet_base_noise_01.csv",
+    "mat": "toilet_base_noise_01.mat"
+  },
+  "software": {
+    "python": "3.14.7",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pyserial": "3.5"
+  },
+  "edit_note": "2026-11-04: renamed from toilet_noise_01 to toilet_base_noise_01 and the metadata filled in, on the operator's instruction. Sensor at the base, as the operator confirmed"
+}
