@@ -6,9 +6,11 @@ data/raw/ and data/analysis/ are not committed, so trials recorded on one comput
 reach the others through git. This pulls, copies each trial's .json and .mat from the day's
 folder to data/controlled/raw/<date>/ (the per-sample CSVs hold the same data and are left
 out), copies the day's analysis outputs with their event tags to
-data/controlled/analysis/<date>/, then commits and pushes. Trials already published under
-another name (renamed after sharing) are skipped, and so are the folder's day-wide summary
-CSVs then, since they carry the old names.
+data/controlled/analysis/<date>/, then commits and pushes. The commit message says what is
+new, e.g. "Add 19 toilet trials from 2026-11-04", or that the day's trials or their analysis
+were updated; --message gives one instead. Trials already published under another name
+(renamed after sharing) are skipped, and so are the folder's day-wide summary CSVs then,
+since they carry the old names.
 
 Without an argument it takes the newest day in this clone's data/raw/; give a date for
 another day, or the path of any folder of trials (one recorded in another copy of the repo
@@ -59,10 +61,41 @@ def published_under_other_names(sidecars: list[Path], dst: Path) -> list[tuple[s
     return pairs
 
 
+def commit_message(date: str, new: dict[str, str | None], trials_changed: bool) -> str:
+    """What a share commits: new maps each newly published trial to its floor_material;
+    trials_changed is whether already published trials (.json or .mat) changed."""
+    if not new:
+        return (f"Update the {date} trials and their analysis" if trials_changed
+                else f"Update the analysis of the {date} trials")
+    materials = " and ".join(sorted({m for m in new.values() if m}))
+    what = f"{len(new)} {materials + ' ' if materials else ''}trial{'s' if len(new) > 1 else ''}"
+    return f"Add {what} from {date}" + ("; update the others" if trials_changed else "")
+
+
+def staged_changes(dst: Path) -> tuple[dict[str, str | None], bool]:
+    """The trials staged as new in dst (with their floor_material), and whether any
+    trial already in it changed."""
+    out = subprocess.run(["git", "diff", "--cached", "--name-status", "--", str(dst)],
+                         cwd=REPO, capture_output=True, text=True, check=True).stdout
+    new, changed = {}, False
+    for line in out.splitlines():
+        status, *paths = line.split("\t")
+        path = REPO / paths[-1]
+        if status == "A":
+            if path.suffix == ".json":
+                meta = json.loads(path.read_text(encoding="utf-8"))
+                new[path.stem] = meta.get("floor_material")
+        elif path.suffix in (".json", ".mat"):
+            changed = True
+    return new, changed
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("day", nargs="?",
                         help="a date in data/raw/ or a folder of trials; default: the newest day")
+    parser.add_argument("--message", "-m",
+                        help="commit message (default: says what is new or updated)")
     args = parser.parse_args(argv)
 
     day = find_day(args.day)
@@ -108,7 +141,9 @@ def main(argv=None):
     if git("diff", "--cached", "--quiet", "--", str(CONTROLLED), check=False).returncode == 0:
         print("nothing new to push")
         return
-    git("commit", "-m", f"Add floor trials from {date}", "--", str(CONTROLLED))
+    message = args.message or commit_message(date, *staged_changes(dst))
+    print(f"commit: {message}")
+    git("commit", "-m", message, "--", str(CONTROLLED))
     git("push")
 
 
