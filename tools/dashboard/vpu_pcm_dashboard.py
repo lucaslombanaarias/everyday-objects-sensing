@@ -45,6 +45,7 @@ from acquisition.record import (
     EXCITATIONS,
     MOUNTS,
     NOMINAL_FS_HZ,
+    UNCOUNTED,
     assemble,
     build_meta,
     next_trial_id,
@@ -79,7 +80,7 @@ COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb
 WAVE_FAINT = (79, 195, 247, 55)
 """The trial plot's waveform, drawn faint: the detector tests the RMS, not this."""
 TRIAL_TYPES = [*EXCITATIONS, "noise only"]
-DROPS = ("drop_stand", "ball_drop")
+DROPS = ("drop_stand", "ball_drop", "ice_drop")
 """Excitations with a drop height and tip; walking has no single excitation point."""
 AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 TRIAL_PLOT_H = 260
@@ -535,10 +536,10 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.notes_edit.setText(self.notes_by_type.get(kind, ""))
         self.last_type = kind
         noise = kind == "noise only"
-        for w in (self.dist, self.made):
-            w.setEnabled(not noise)
+        self.dist.setEnabled(not noise)
         # Fields that do not apply are greyed out and left out of the trial; their values
         # stay in the form for when the excitation is switched back.
+        self.made.setEnabled(not noise and kind not in UNCOUNTED)
         self.point_edit.setEnabled(not noise and kind != "walking")
         for w in (self.height, self.tip_edit):
             w.setEnabled(kind in DROPS)
@@ -711,7 +712,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
             argv.append("--noise-only")
         else:
             argv += ["--excitation-type", kind, "--distance-m", f"{self.dist.value():g}"]
-            if self.made.value():
+            if self.made.isEnabled() and self.made.value():
                 argv += ["--impacts", str(self.made.value())]
             if self.height.isEnabled() and self.height.value():
                 argv += ["--drop-height-cm", f"{self.height.value():g}"]

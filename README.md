@@ -2,6 +2,50 @@
 
 AI Design Catalog prototype (live site): https://lucaslombanaarias.github.io/everyday-objects-sensing/
 
+## Setting up a new laptop
+
+To record with the PCM dashboard on a Windows laptop that has never run this repo. The board keeps its firmware, so the Arduino IDE is only needed to reflash it.
+
+1. Install Python 3.14 or newer (the package requires it) and Git, then close PowerShell and open a new window so both are on the PATH:
+
+   ```
+   winget install Python.Python.3.14
+   winget install Git.Git
+   ```
+
+   With the python.org installer instead, tick "Add python.exe to PATH" on its first screen. If `python` then opens the Microsoft Store, Python is not on the PATH yet: open a new window, or use `py` in place of `python`.
+
+2. Clone the repo:
+
+   ```
+   git clone https://github.com/lucaslombanaarias/everyday-objects-sensing.git
+   cd everyday-objects-sensing
+   ```
+
+3. Install the requirements into that Python:
+
+   ```
+   python -m pip install -r requirements.txt
+   ```
+
+   Installed this way there is nothing to activate. In a virtual environment instead, run `.\.venv\Scripts\Activate.ps1` in every new window before anything else, or `python` will not find the packages.
+
+4. Plug in the board and find its port. The board is the "USB Serial Device" with `VID:PID=303A:1001`; the other ports (often Bluetooth) are not it. Then start the dashboard from the repo folder with that port:
+
+   ```
+   python -m serial.tools.list_ports -v
+   python tools/dashboard/vpu_pcm_dashboard.py --port COM5
+   ```
+
+   The window can take half a minute to appear: on a slower laptop, importing `scipy.signal` alone takes about 30 s, and 2.5 minutes the first time after installing. `--port SIM` runs the dashboard without a board.
+
+To share that laptop's trials with `python scripts/share_trials.py` (see [the dashboard README](tools/dashboard/README.md)), git needs a name and email once, and the first push asks you to sign in to GitHub:
+
+```
+git config --global user.name "<name>"
+git config --global user.email "<email>"
+```
+
 ## everyday_sensing (Python package): Development
 
 These instructions are only for the `everyday_sensing` Python package in `src/everyday_sensing/`, not the rest of the repository.
@@ -31,6 +75,16 @@ Regenerate the slide figures in `docs/figures/`:
 python scripts/plot_filter_figures.py
 ```
 
+and the floor test slide figures (bare against enclosed):
+
+```
+python scripts/plot_floor_slides.py
+```
+
+## Wavelet transform (MATLAB)
+
+`matlab/wavelet/` has the Morlet wavelet transform code from Prof. Vakakis's lab, with an example. See [its README](matlab/wavelet/README.md) for how to run it on a trial and compare two floors.
+
 ## Recording data
 
 For floor tests (drops, stomps, steps and walking at set distances, on different floors and mounts), follow the [floor test procedure](docs/testing/floor_procedure.md).
@@ -50,8 +104,8 @@ python -m acquisition.record --port COM3 --trial-id d1_noise_01 --duration 30 --
 The recorder refuses to start (before opening the port) unless the trial has:
 
 - `--mount-method`: `tape`, `putty_wax`, `loose` or `preloaded`, on every trial.
-- `--excitation-type`: `drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking` or `stomp`, unless `--noise-only`.
-- `--impacts`: the number of impacts made, 1 or more, unless `--noise-only` (noise-only trials record 0).
+- `--excitation-type`: `drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking`, `stomp`, `ice_drop` (ice cubes dropped into a toilet bowl) or `water_pour` (water poured into a toilet bowl, the stream trials), unless `--noise-only`.
+- `--impacts`: the number of impacts made, 1 or more, unless `--noise-only` (noise-only trials record 0) or `water_pour` (a pour is not a number of impacts; impacts made stays null).
 
 Optional: `--excitation-point` (the fixed impact point ID on this floor), `--distance-m` (the sensor radius, impact point to sensor center), `--drop-height-cm` and `--tip`, `--floor-material`, and `--baseline-noise-id` (the noise-only trial recorded as this block's baseline). Sidecars written before these fields existed still load: missing fields read as null, and old values such as excitation `footsteps` are kept as they are.
 

@@ -1,0 +1,140 @@
+{
+  "trial_id": "toilet_behindseat_ice_02",
+  "analyzed_at": "2026-11-04T23:26:16-06:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": "ice_drop",
+  "excitation_point_id": "center of the bowl water",
+  "distance_m": null,
+  "mount": "tape",
+  "impacts_made": 5,
+  "impacts_found": 12,
+  "difference": 7,
+  "edge_events": 0,
+  "true_impact": 5,
+  "walk_in_out": 0,
+  "other_noise": 7,
+  "unknown": 0,
+  "unreviewed": 0,
+  "baseline_used": "toilet_base_noise_01",
+  "baseline_recorded": "toilet_base_noise_01",
+  "baseline_mismatch": false,
+  "duration_s": 12.208,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 2.3367569011414444,
+    "100-500 Hz": 1.0101631533015953,
+    "500-2000 Hz": 0.682062919247203,
+    "2-8 kHz": 1.2747783669202142
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 1.029,
+      "timestamp": "2026-11-04T19:06:35.242-06:00",
+      "peak_db": 50.59,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 2,
+      "t_s": 1.371,
+      "timestamp": "2026-11-04T19:06:35.584-06:00",
+      "peak_db": 21.59,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 3,
+      "t_s": 2.351,
+      "timestamp": "2026-11-04T19:06:36.564-06:00",
+      "peak_db": 19.15,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 4,
+      "t_s": 3.309,
+      "timestamp": "2026-11-04T19:06:37.522-06:00",
+      "peak_db": 54.13,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 5,
+      "t_s": 3.568,
+      "timestamp": "2026-11-04T19:06:37.781-06:00",
+      "peak_db": 15.96,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 6,
+      "t_s": 3.874,
+      "timestamp": "2026-11-04T19:06:38.087-06:00",
+      "peak_db": 19.34,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 7,
+      "t_s": 5.222,
+      "timestamp": "2026-11-04T19:06:39.435-06:00",
+      "peak_db": 39.85,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 8,
+      "t_s": 5.905,
+      "timestamp": "2026-11-04T19:06:40.118-06:00",
+      "peak_db": 46.44,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 9,
+      "t_s": 7.89,
+      "timestamp": "2026-11-04T19:06:42.103-06:00",
+      "peak_db": 18.49,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 10,
+      "t_s": 8.478,
+      "timestamp": "2026-11-04T19:06:42.691-06:00",
+      "peak_db": 55.26,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 11,
+      "t_s": 10.702,
+      "timestamp": "2026-11-04T19:06:44.915-06:00",
+      "peak_db": 34.98,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 12,
+      "t_s": 10.963,
+      "timestamp": "2026-11-04T19:06:45.176-06:00",
+      "peak_db": 23.8,
+      "flag": "",
+      "annotation": "other_noise"
+    }
+  ]
+}

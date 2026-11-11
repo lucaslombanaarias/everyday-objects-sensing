@@ -1,0 +1,156 @@
+{
+  "trial_id": "toilet_base_ice_01",
+  "analyzed_at": "2026-11-04T23:26:16-06:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": "ice_drop",
+  "excitation_point_id": "center of the bowl water",
+  "distance_m": null,
+  "mount": "tape",
+  "impacts_made": 5,
+  "impacts_found": 14,
+  "difference": 9,
+  "edge_events": 3,
+  "true_impact": 5,
+  "walk_in_out": 0,
+  "other_noise": 9,
+  "unknown": 0,
+  "unreviewed": 0,
+  "baseline_used": "toilet_base_noise_01",
+  "baseline_recorded": "toilet_base_noise_01",
+  "baseline_mismatch": false,
+  "duration_s": 15.901333333333334,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 2.3367569011414444,
+    "100-500 Hz": 1.0101631533015953,
+    "500-2000 Hz": 0.682062919247203,
+    "2-8 kHz": 1.2747783669202142
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 0.146,
+      "timestamp": "2026-11-04T18:43:00.497-06:00",
+      "peak_db": 16.76,
+      "flag": "edge",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 2,
+      "t_s": 0.509,
+      "timestamp": "2026-11-04T18:43:00.860-06:00",
+      "peak_db": 28.93,
+      "flag": "edge",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 3,
+      "t_s": 1.214,
+      "timestamp": "2026-11-04T18:43:01.565-06:00",
+      "peak_db": 22.55,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 4,
+      "t_s": 2.517,
+      "timestamp": "2026-11-04T18:43:02.868-06:00",
+      "peak_db": 41.61,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 5,
+      "t_s": 5.276,
+      "timestamp": "2026-11-04T18:43:05.627-06:00",
+      "peak_db": 55.32,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 6,
+      "t_s": 6.039,
+      "timestamp": "2026-11-04T18:43:06.390-06:00",
+      "peak_db": 29.72,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 7,
+      "t_s": 6.337,
+      "timestamp": "2026-11-04T18:43:06.688-06:00",
+      "peak_db": 30.85,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 8,
+      "t_s": 7.794,
+      "timestamp": "2026-11-04T18:43:08.145-06:00",
+      "peak_db": 21.77,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 9,
+      "t_s": 8.134,
+      "timestamp": "2026-11-04T18:43:08.485-06:00",
+      "peak_db": 23.36,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 10,
+      "t_s": 8.544,
+      "timestamp": "2026-11-04T18:43:08.895-06:00",
+      "peak_db": 67.87,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 11,
+      "t_s": 11.713,
+      "timestamp": "2026-11-04T18:43:12.064-06:00",
+      "peak_db": 59.5,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 12,
+      "t_s": 12.142,
+      "timestamp": "2026-11-04T18:43:12.493-06:00",
+      "peak_db": 14.02,
+      "flag": "",
+      "annotation": "other_noise"
+    },
+    {
+      "event": 13,
+      "t_s": 14.456,
+      "timestamp": "2026-11-04T18:43:14.807-06:00",
+      "peak_db": 69.2,
+      "flag": "",
+      "annotation": "true_impact"
+    },
+    {
+      "event": 14,
+      "t_s": 15.727,
+      "timestamp": "2026-11-04T18:43:16.078-06:00",
+      "peak_db": 18.8,
+      "flag": "edge",
+      "annotation": "other_noise"
+    }
+  ]
+}

@@ -1,0 +1,61 @@
+{
+  "meta_version": 2,
+  "trial_id": "carpet_enclosed_walk_2m_01",
+  "date": "2026-10-21",
+  "start_time": "2026-10-21T20:58:06.705-05:00",
+  "noise_only": false,
+  "operator": null,
+  "floor_material": "carpet",
+  "floor_location": null,
+  "distance_m": 2.0,
+  "excitation": {
+    "type": "walking",
+    "mass_g": null,
+    "drop_height_cm": null,
+    "tip": null
+  },
+  "excitation_point_id": null,
+  "impacts_made": 10,
+  "sensor_mount": {
+    "method": "preloaded",
+    "preload": null
+  },
+  "baseline_noise_id": "carpet_enclosed_noise_01",
+  "sensor_serial": null,
+  "ambient_conditions": null,
+  "notes": "Elsa walking in place, 10 steps at 2 m, carpet, sensor in enclosure, trial 1.",
+  "fw_commit": null,
+  "repo_commit": null,
+  "repo_dirty": null,
+  "fw_source_commit": null,
+  "fs_hz": 48000.0,
+  "port": "COM7",
+  "requested_duration_s": 7.769,
+  "checks": {
+    "frames": 2904,
+    "samples": 371712,
+    "crc_errors": 0,
+    "skipped_bytes_after_first_frame": 0,
+    "counter_gaps": 0,
+    "missing_samples": 0,
+    "out_of_order_frames": 0,
+    "device_overflow_events": 0,
+    "clipped_samples": 0,
+    "nominal_fs_hz": 48000.0,
+    "measured_fs_hz": 48386.14253690176,
+    "fs_within_tolerance": true,
+    "ok": true
+  },
+  "files": {
+    "csv": "carpet_enclosed_walk_2m_01.csv",
+    "mat": "carpet_enclosed_walk_2m_01.mat"
+  },
+  "software": {
+    "python": "3.14.7",
+    "numpy": "2.5.4",
+    "scipy": "1.18.1",
+    "pyserial": "3.5"
+  },
+  "edit_note": "2026-10-22: renamed from carpet_enclosed_2m_01 to carpet_enclosed_walk_2m_01, on the operator's instruction",
+  "published_note": "Published copy: the .mat meta is rewritten to match this sidecar; the samples are unchanged"
+}

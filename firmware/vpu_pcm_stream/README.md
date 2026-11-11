@@ -84,7 +84,7 @@ Record trials with `python -m acquisition.record` (see the main README, "Recordi
 
 ### Footstep check
 
-Tile floor, sensor taped, 2026-10-14, walker Elsa, steps on tape-measured marks on a circle around the sensor. Noise-only recordings before the trials (`fs_noise_01`, 30 s, and `fs_noise_03`, 47 s) gave the baselines; the medians in `fs_noise_01` were 2.26 counts (above 100 Hz, 5 ms RMS) and 1.60, 0.84 and 1.02 counts (50 ms RMS in 100 to 500 Hz, 500 to 2000 Hz and 2 to 8 kHz). Analyzed with `python -m everyday_sensing.impacts data/raw/2026-10-14`:
+Tile floor, sensor taped, 2026-10-14, walker Elsa, steps on tape-measured marks on a circle around the sensor. Noise-only recordings before the trials (`fs_noise_01`, 30 s, and `fs_noise_03`, 47 s; published in `data/controlled/raw/2026-10-14/` as `tile_bare_noise_01` and `_03`) gave the baselines; the medians in `fs_noise_01` were 2.26 counts (above 100 Hz, 5 ms RMS) and 1.60, 0.84 and 1.02 counts (50 ms RMS in 100 to 500 Hz, 500 to 2000 Hz and 2 to 8 kHz). Analyzed with `python -m everyday_sensing.impacts data/raw/2026-10-14`:
 
 | Trial | Distance | Steps made | Impacts found | Detection level (above 100 Hz, 5 ms) | Baseline |
 |---|---|---|---|---|---|

@@ -58,6 +58,15 @@ def test_invalid_metadata_is_reported(drop, value, problem):
     assert len(problems) == 1 and problems[0].startswith(problem)
 
 
+def test_ice_drop_needs_impacts_and_water_pour_does_not():
+    ice = ["--excitation-type", "ice_drop", "--mount-method", "tape"]
+    assert validate_meta(meta_for(ice))[0].startswith("impacts made is required")
+    assert validate_meta(meta_for([*ice, "--impacts", "5"])) == []
+    pour = meta_for(["--excitation-type", "water_pour", "--mount-method", "tape"])
+    assert validate_meta(pour) == []
+    assert pour["impacts_made"] is None
+
+
 def test_noise_only_needs_a_mount_and_records_zero_impacts():
     meta = meta_for(["--noise-only", "--mount-method", "tape"])
     assert validate_meta(meta) == []
