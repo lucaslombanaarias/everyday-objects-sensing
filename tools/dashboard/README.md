@@ -18,29 +18,34 @@ pip install -r requirements.txt
 
 ## PCM dashboard
 
-Flash `firmware/vpu_pcm_stream` first (see its README), then:
+Flash `firmware/vpu_pcm_stream` first (see its README), then double-click `dashboard.bat` in the repo root. The first time, it installs the requirements; then it opens the dashboard, which finds the board by itself (the port with Espressif's USB ID, 303A, never a Bluetooth port) and keeps looking every second until it is plugged in. For a desktop shortcut, right-click `dashboard.bat` > Show more options > Send to > Desktop (create shortcut). If the dashboard fails to start, the window stays open with the error.
+
+From a terminal, the same:
+
+```
+python tools/dashboard/vpu_pcm_dashboard.py
+```
+
+With a given port, or with synthetic footsteps and no hardware (both also work as `dashboard.bat --port SIM`):
 
 ```
 python tools/dashboard/vpu_pcm_dashboard.py --port COM3
-```
-
-Run with synthetic footsteps, no hardware needed:
-
-```
 python tools/dashboard/vpu_pcm_dashboard.py --port SIM
 ```
 
 - Waveform: the last 3 s, high-passed at 100 Hz by default (the 41 Hz hum measured at rest otherwise dominates the view), with the live RMS level in the chosen band, the live threshold and a dot on each live event.
 - Level + spectrogram (checkbox, off by default): the live level in dB above the noise baseline, and a spectrogram of the last 10 s, 0 to 8 kHz.
-- Side panel, three tabs: Trial (the form and Record button), Results (det-v1 analysis of one trial and of the whole day), Live (event count and log of the live preview).
+- Side panel, four tabs: Trial (Notes and the Record button), Results (det-v1 analysis of one trial and of the whole day), Recordings (every recording on this computer: edit, trash, share), Live (event count and log of the live preview).
 
 ### Running trials
 
-1. Trial tab: pick Excitation "noise only" and the Mount, press Record, stay still for about 30 s, press Stop. This is the noise baseline for the trials recorded after it, and becomes the form's Baseline noise.
-2. Set Excitation (`drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking`, `stomp`, `ice_drop`, `water_pour`), Impacts made (greyed out for `water_pour`), Excitation point, Sensor radius (impact point to sensor center), Mount (`tape`, `putty_wax`, `loose`, `preloaded`), and if relevant Drop height and Tip, plus floor and operator once. The Trial ID fills itself in (`fs_1m_03`, numbered after the trials already saved that day); you can edit it.
-3. Press Record, make the impacts, press Stop.
+Trial tab: write what you are recording in Notes, press Record, press Stop. Nothing else is needed, and Record never refuses. The notes stay for the next recording, so change them when it is different.
 
-Record refuses to start without an ID prefix, an excitation, impacts made (1 or more, except for `water_pour`) and a mount, and says what is missing; nothing is recorded until the form is complete. Notes carry over from one trial to the next, so when they are unchanged from the last saved trial Record also stops once and outlines them in orange: edit them, or press Record again to keep them. Once a recording has started it is always saved at Stop, even if the form was changed meanwhile (the result line then says what is incomplete).
+Everything else is optional, under Details: Excitation (`drop_stand`, `ball_drop`, `single_step`, `double_step`, `walking`, `stomp`, `ice_drop`, `water_pour`, or noise only), Impacts made, Excitation point, Sensor radius (impact point to sensor center), Drop height, Tip, Floor, Mount (`tape`, `putty_wax`, `loose`, `preloaded`), Baseline noise, Operator, Firmware commit, ID prefix and Trial ID. Each starts as "not given", and what is left that way is saved as null. They can all be filled in or changed later in the Recordings tab.
+
+The Trial ID fills itself in, numbered after the trials already saved that day: `trial_01` with nothing given, `<prefix>_1m_03` with a prefix and a radius, `<prefix>_noise_01` for noise only. You can type your own; spaces and other characters that cannot go in a file name become `_`.
+
+For the analysis, record a noise-only trial (Details > Excitation "noise only", everyone still for about 30 s) before the trials it is the baseline for. A trial with none before it is measured against the day's first noise-only trial, or, with none that day, against its own quietest 2 s. Made against found needs Impacts made.
 
 Stop saves the same three files as `python -m acquisition.record` (CSV, JSON sidecar with checks, .mat) to `data/raw/<date>/`, runs the analysis on that day's folder, writes its outputs to `data/analysis/<date>/` and switches to the Results tab:
 
@@ -57,7 +62,21 @@ What a trial looks like:
 
 The PCM dashboard on `tile_bare_stomp_2m_01` (saved as `bare_trial_2m_01`, the name in the screenshot; 10 stomps at 2 m, bare sensor, 18 October evening session): the full window, then the whole Results tab, which scrolls in the window. No board was attached when this was taken, so the live view on the left shows the synthetic SIM stream. The summary table at the bottom groups trials by excitation and radius only, so the bare-sensor and vase trials of that session are pooled there.
 
-`data/raw/` and `data/analysis/` are not committed. To share a day of trials with the other computers, run `python scripts/share_trials.py` from the repo root: it copies the newest day's trials (.json and .mat) and analysis to `data/controlled/`, commits and pushes, so `git pull` brings them elsewhere. The commit message says what it adds (`Add 19 toilet trials from 2026-11-04`) or that the day's trials or analysis were updated; `--message "..."` gives your own. Give a date (`python scripts/share_trials.py 2026-10-21`) for another day, or the path of the folder if the trials are somewhere else (`python scripts/share_trials.py "C:\Users\me\Desktop\2026-10-21"`). It prints the folder it looked in.
+### Recordings tab
+
+Every recording saved on this computer (`data/raw/`), newest first: day, time, trial ID, length, notes, and whether it is shared (`yes`; `changed` when edited since it was shared; `as <id>` when it was shared under another name).
+
+- Select one to edit its notes and details, then Save changes. The `.json` and the copy of the metadata in the `.mat` are both updated, and the old values are added to the trial's `edit_note`.
+- Rename... gives the selected recording a new trial ID: its `.json`, `.mat` and `.csv`, the ID inside the `.json` and `.mat` (the old one goes in `edit_note`), its analysis files with their tags, and the Baseline noise of trials that name it. If it is shared already, the copy in `data/controlled/` is renamed too, so the next Share pushes the new name. A name already used that day, here or by another recording shared from another computer, is refused.
+- Trash selected... moves the selected recordings (Ctrl- or Shift-click for several) to the Recycle Bin after asking. Copies already shared stay in `data/controlled/` and on GitHub.
+- Open folder opens the selected recording's day folder.
+- Share <day> to GitHub... runs `scripts/share_trials.py` (below) on the selected recording's day, or the newest day when none is selected, after asking, and shows its messages. Only `data/controlled/` is committed. Keep the window open until it says done.
+
+### Sharing trials
+
+`data/raw/` and `data/analysis/` are not committed. To share a day of trials with the other computers, use the Share button in the Recordings tab, or run `python scripts/share_trials.py` from the repo root: it copies the newest day's trials (.json and .mat) and analysis to `data/controlled/`, commits and pushes, so `git pull` brings them elsewhere. The commit message says what it adds (`Add 19 toilet trials from 2026-11-04`) or that the day's trials or analysis were updated; `--message "..."` gives your own. Give a date (`python scripts/share_trials.py 2026-10-21`) for another day, or the path of the folder if the trials are somewhere else (`python scripts/share_trials.py "C:\Users\me\Desktop\2026-10-21"`). It prints the folder it looked in.
+
+Both computers share to the same `data/controlled/raw/<date>/`, so a trial ID used by both on one day (`trial_01`, say) would overwrite the other computer's recording. Sharing refuses then and names the trial: rename yours in the Recordings tab and share again. To avoid it, new trial IDs are numbered after the day's shared trials too, so `git pull` before recording when the other computer has shared that day.
 
 By default each trial is measured against the latest noise-only trial recorded before it. The Baseline dropdown at the top measures every trial against one noise-only trial instead; those outputs (and their tags) go to a `baseline_<trial>/` subfolder. The table under it lists each noise-only trial's median detection level in counts, so you can see whether the background changed between them, and its false alarms: det-v1 events in the noise-only trial measured against its own baseline, with the rate per minute (orange above 3 per minute, the limit in the floor procedure). Pick a noise-only trial in the Trial dropdown to see its false alarms on the plot and tag their causes. If an events CSV is open in Excel the outputs cannot be written; the folder line at the bottom says so.
 

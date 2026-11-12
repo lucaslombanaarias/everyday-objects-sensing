@@ -2,20 +2,25 @@
 waveform (spectrogram and live level behind a toggle), live event preview, and per-trial
 analysis with the det-v1 detection criterion (everyday_sensing.impacts).
 
+    dashboard.bat                                              # double-click, in the repo root
+    python tools/dashboard/vpu_pcm_dashboard.py                # finds the board by itself
     python tools/dashboard/vpu_pcm_dashboard.py --port COM3
-    python tools/dashboard/vpu_pcm_dashboard.py --port SIM      # synthetic footsteps
+    python tools/dashboard/vpu_pcm_dashboard.py --port SIM     # synthetic footsteps
 
 The board is switched to binary mode while the window is open and back to stats mode when
-it closes. The live preview learns its noise baseline from the first 3 s after connecting
-(keep still) or with the "Learn noise" button; it is a hysteresis detector for watching the
-floor, not the det-v1 criterion the trials are analyzed with.
+it closes. Without --port the dashboard looks for the board (Espressif's USB ID) every
+second until it is plugged in. The live preview learns its noise baseline from the first
+3 s after connecting (keep still) or with the "Learn noise" button; it is a hysteresis
+detector for watching the floor, not the det-v1 criterion the trials are analyzed with.
 
-Trial tab: fill in the trial (type, mount, impacts made, ...) and press Record; Record
-refuses to start without the required fields. Stop saves the same CSV, JSON sidecar and
-.mat files as `python -m acquisition.record`, to data/raw/<date>/ by default, then runs
-everyday_sensing.impacts on the folder and writes its outputs to data/analysis/<date>/.
-Results tab: one trial's waveform with its detected events, made against found, the
-events to tag, and a per-distance summary of every trial in that folder.
+Trial tab: Notes and Record. Every other field is optional, under Details. Stop saves the
+same CSV, JSON sidecar and .mat files as `python -m acquisition.record`, to
+data/raw/<date>/ by default, then runs everyday_sensing.impacts on the folder and writes
+its outputs to data/analysis/<date>/. Results tab: one trial's waveform with its detected
+events, made against found, the events to tag, and a per-distance summary of every trial
+in that folder. Recordings tab: every trial saved on this computer, to edit (notes and
+details), trash, or share (scripts/share_trials.py: copy a day to data/controlled/, commit
+and push).
 
 Keys: Space = pause display, R = start/stop recording, N = learn noise, C = clear events.
 Requires the repo's Python package (pip install -r requirements.txt from the repo root).
@@ -26,6 +31,7 @@ import dataclasses
 import datetime
 import json
 import math
+import re
 import sys
 import threading
 import time
@@ -45,20 +51,30 @@ from acquisition.record import (
     EXCITATIONS,
     MOUNTS,
     NOMINAL_FS_HZ,
-    UNCOUNTED,
+    REPO_ROOT,
+    apply_fields,
     assemble,
     build_meta,
+    edit_trial,
+    find_board_port,
+    get_field,
+    list_recordings,
     next_trial_id,
     parse_args,
+    rename_trial,
     repo_state,
     trash_trial,
-    validate_meta,
     write_trial,
 )
 from everyday_sensing import impacts
 from everyday_sensing.events import BandEnvelope, EventDetector
 
 SIM = "SIM"
+AUTO = "AUTO"
+"""--port value (the default) that looks for the board until it is plugged in."""
+SHARE_SCRIPT = REPO_ROOT / "scripts" / "share_trials.py"
+CONTROLLED = REPO_ROOT / "data" / "controlled"
+"""Where shared trials go (scripts/share_trials.py)."""
 TICK_MS = 50
 WAVE_S = 3.0           # waveform history shown
 ENV_S = 20.0           # envelope history shown
@@ -79,9 +95,8 @@ COLORS = {"wave": "#4fc3f7", "env": "#ffb74d", "thr": "#ef5350", "event": "#66bb
           "edge": "#ffa726", "skipped": "#b0b8c0"}
 WAVE_FAINT = (79, 195, 247, 55)
 """The trial plot's waveform, drawn faint: the detector tests the RMS, not this."""
-TRIAL_TYPES = [*EXCITATIONS, "noise only"]
-DROPS = ("drop_stand", "ball_drop", "ice_drop")
-"""Excitations with a drop height and tip; walking has no single excitation point."""
+NOISE = "noise only"
+NOT_GIVEN = "not given"
 AUTO_BASELINE = "automatic (latest noise-only trial before each trial)"
 TRIAL_PLOT_H = 260
 FALSE_ALARMS_HIGH = 3.0
@@ -134,6 +149,7 @@ class Link:
     def __init__(self):
         self.lock = threading.Lock()
         self.status = "idle"
+        self.port = None        # the port streaming, once found and opened
         self.parser = FrameParser()
         self.frames = 0
         self.gaps = self.missing = 0
@@ -168,17 +184,26 @@ class SerialPcmSource(threading.Thread):
 
     def run(self):
         while not self.stop_evt.is_set():
+            port = self.port
+            if port == AUTO:
+                port = find_board_port(serial.tools.list_ports.comports())
+                if port is None:
+                    self.link.status = "no board found: plug it in (looking every second)"
+                    self.stop_evt.wait(1.0)
+                    continue
             try:
                 ser = serial.Serial()
-                ser.port, ser.baudrate, ser.timeout = self.port, 115200, 0.05
+                ser.port, ser.baudrate, ser.timeout = port, 115200, 0.05
                 ser.dtr, ser.rts = True, False  # RTS high would hold the ESP32-C6 in reset
                 ser.open()
             except (serial.SerialException, OSError) as e:
                 hint = " (close Arduino Serial Monitor?)" if "denied" in str(e).lower() else ""
-                self.link.status = f"{self.port}: cannot open{hint} - retrying"
+                self.link.status = f"{port}: cannot open{hint} - retrying"
                 self.stop_evt.wait(1.0)
                 continue
-            self.link.status = f"{self.port} streaming"
+            self.link.port = port
+            self.link.status = f"{port} streaming" + (
+                " (found automatically)" if self.port == AUTO else "")
             try:
                 ser.reset_input_buffer()
                 ser.write(b"B")
@@ -190,7 +215,7 @@ class SerialPcmSource(threading.Thread):
                         self.link.on_frames(frames, self.ring)
                 ser.write(b"S")
             except (serial.SerialException, OSError):
-                self.link.status = f"{self.port}: disconnected - retrying"
+                self.link.status = f"{port}: disconnected - retrying"
             finally:
                 ser.close()
 
@@ -209,6 +234,7 @@ class SimPcmSource(threading.Thread):
 
     def run(self):
         self.link.status = "SIM (synthetic footsteps)"
+        self.link.port = SIM
         rng = np.random.default_rng(2)
         n, t0, ovf = 0, time.monotonic(), 0
         while not self.stop_evt.wait(0.01):
@@ -243,6 +269,104 @@ def spin(lo, hi, val, step, decimals=1, suffix=""):
     s.setSuffix(suffix)
     s.setKeyboardTracking(False)
     return s
+
+
+class DetailsForm(QtWidgets.QWidget):
+    """The optional trial fields, on the Trial tab and in the Recordings tab's editor.
+    Every field starts as not given; values() returns them named as in record.EDITABLE."""
+
+    def __init__(self):
+        super().__init__()
+        self.type_box = QtWidgets.QComboBox()
+        self.made = QtWidgets.QSpinBox(minimum=0, maximum=999, value=0,
+                                       specialValueText=NOT_GIVEN)
+        self.point_edit = QtWidgets.QLineEdit(placeholderText="e.g. P1")
+        self.dist = spin(0, 100, 0, 0.5, decimals=2, suffix=" m")
+        self.dist.setSpecialValueText(NOT_GIVEN)
+        self.dist.setToolTip("Sensor radius: impact point to sensor center")
+        self.height = spin(0, 500, 0, 5, decimals=1, suffix=" cm")
+        self.height.setSpecialValueText(NOT_GIVEN)
+        self.tip_edit = QtWidgets.QLineEdit(placeholderText="e.g. steel ball 16 mm")
+        self.floor_edit = QtWidgets.QLineEdit(placeholderText="e.g. tile")
+        self.mount_box = QtWidgets.QComboBox()
+        self.block_box = QtWidgets.QComboBox(editable=True)
+        self.block_box.lineEdit().setPlaceholderText("noise-only trial to measure against")
+        self.operator_edit = QtWidgets.QLineEdit()
+        self._choices(self.type_box, [*EXCITATIONS, NOISE])
+        self._choices(self.mount_box, MOUNTS)
+        self.form = QtWidgets.QFormLayout(self)
+        self.form.setContentsMargins(0, 0, 0, 0)
+        for label, w in [("Excitation", self.type_box), ("Impacts made", self.made),
+                         ("Excitation point", self.point_edit), ("Sensor radius", self.dist),
+                         ("Drop height", self.height), ("Tip", self.tip_edit),
+                         ("Floor", self.floor_edit), ("Mount", self.mount_box),
+                         ("Baseline noise", self.block_box), ("Operator", self.operator_edit)]:
+            self.form.addRow(QtWidgets.QLabel(label), w)
+
+    @staticmethod
+    def _choices(box, items):
+        box.clear()
+        box.addItem(NOT_GIVEN, None)
+        for x in items:
+            box.addItem(x, x)
+
+    @staticmethod
+    def _pick(box, value):
+        """Select value, adding it when it is not one of the choices (older sidecars)."""
+        if value in (None, ""):
+            box.setCurrentIndex(0)
+            return
+        i = box.findData(value)
+        if i < 0:
+            box.addItem(str(value), value)
+            i = box.count() - 1
+        box.setCurrentIndex(i)
+
+    def values(self) -> dict:
+        kind = self.type_box.currentData()
+        noise = kind == NOISE
+        text = lambda edit: edit.text().strip() or None
+        return {
+            "noise_only": noise,
+            "excitation.type": "none" if noise else kind,
+            "impacts_made": 0 if noise else (self.made.value() or None),
+            "excitation_point_id": text(self.point_edit),
+            "distance_m": self.dist.value() or None,
+            "excitation.drop_height_cm": self.height.value() or None,
+            "excitation.tip": text(self.tip_edit),
+            "floor_material": text(self.floor_edit),
+            "sensor_mount.method": self.mount_box.currentData(),
+            "baseline_noise_id": self.block_box.currentText().strip() or None,
+            "operator": text(self.operator_edit),
+        }
+
+    def set_values(self, meta: dict):
+        noise = impacts.is_noise(meta)
+        self._pick(self.type_box, NOISE if noise else get_field(meta, "excitation.type"))
+        self.made.setValue(0 if noise else (meta.get("impacts_made") or 0))
+        self.point_edit.setText(meta.get("excitation_point_id") or "")
+        self.dist.setValue(meta.get("distance_m") or 0)
+        self.height.setValue(get_field(meta, "excitation.drop_height_cm") or 0)
+        self.tip_edit.setText(get_field(meta, "excitation.tip") or "")
+        self.floor_edit.setText(meta.get("floor_material") or "")
+        self._pick(self.mount_box, get_field(meta, "sensor_mount.method"))
+        self.block_box.setCurrentText(meta.get("baseline_noise_id") or "")
+        self.operator_edit.setText(meta.get("operator") or "")
+
+
+def safe_id(text: str) -> str:
+    """A trial ID usable as a file name: spaces and other characters become _."""
+    return re.sub(r"[^\w.-]+", "_", text.strip()).strip("_.")
+
+
+def describe(meta: dict) -> str:
+    """What a trial is, from whatever details it has: 'stomp, 1 m', 'noise only'."""
+    if impacts.is_noise(meta):
+        return NOISE
+    kind = get_field(meta, "excitation.type")
+    distance = meta.get("distance_m")
+    parts = [kind or "no details"] + ([f"{distance:g} m"] if distance is not None else [])
+    return ", ".join(parts)
 
 
 class PcmDashboard(QtWidgets.QMainWindow):
@@ -387,62 +511,44 @@ class PcmDashboard(QtWidgets.QMainWindow):
                     lay.addWidget(x)
             return w
 
-        # Trial: what is being recorded
-        self.type_box = QtWidgets.QComboBox()
-        self.type_box.addItems(TRIAL_TYPES)
-        self.notes_by_type = {}
-        self.last_type = self.type_box.currentText()
-        self.point_edit = QtWidgets.QLineEdit(placeholderText="fixed impact point, e.g. P1")
-        self.dist = spin(0, 100, 1.0, 0.5, decimals=2, suffix=" m")
-        self.dist.setToolTip("Sensor radius: impact point to sensor center")
-        self.height = spin(0, 500, 0, 5, decimals=1, suffix=" cm")
-        self.height.setSpecialValueText("not given")
-        self.tip_edit = QtWidgets.QLineEdit(placeholderText="optional, e.g. steel ball 16 mm")
-        self.made = QtWidgets.QSpinBox(minimum=0, maximum=999, value=0,
-                                       specialValueText="required")
-        self.floor_edit = QtWidgets.QLineEdit(placeholderText="e.g. tile")
-        # Mount starts blank, like Impacts made: Record refuses until one is picked, so a
-        # trial is never saved with a default mount nobody chose.
-        self.mount_box = QtWidgets.QComboBox(placeholderText="required")
-        self.mount_box.addItems(MOUNTS)
-        self.mount_box.setCurrentIndex(-1)
-        self.block_box = QtWidgets.QComboBox(editable=True)
-        self.block_box.lineEdit().setPlaceholderText("noise-only trial of this block")
-        self.operator_edit = QtWidgets.QLineEdit()
+        # Trial: notes and Record; every other field is optional, under Details
+        self.notes_edit = QtWidgets.QPlainTextEdit(
+            placeholderText="what this recording is, e.g. stomps 1 m from the sensor, tape mount")
+        self.notes_edit.setFixedHeight(110)
+        self.details = DetailsForm()
         fw = repo_state().get("fw_source_commit") or ""
         self.fw_edit = QtWidgets.QLineEdit(fw[:7], placeholderText="commit flashed on the board")
-        # Blank and required, like Mount: a default prefix named the 10/19 stomps "fs"
-        # (footsteps).
-        self.prefix_edit = QtWidgets.QLineEdit(placeholderText="required, e.g. tile_bare_drop")
-        self.notes_edit = QtWidgets.QLineEdit(placeholderText="e.g. walking circle, 5 steps on marks")
-        # Notes carry over between trials, so Record stops once when they are unchanged.
-        self.last_notes = None          # (notes, trial id) of the last saved trial
-        self.notes_confirmed = False
-        self.notes_edit.textChanged.connect(self._notes_edited)
-        self.trial_edit = QtWidgets.QLineEdit()
-        form = QtWidgets.QFormLayout()
-        for label, w in [("Excitation", self.type_box), ("Impacts made", self.made),
-                         ("Excitation point", self.point_edit), ("Sensor radius", self.dist),
-                         ("Drop height", self.height), ("Tip", self.tip_edit),
-                         ("Floor", self.floor_edit), ("Mount", self.mount_box),
-                         ("Baseline noise", self.block_box), ("Operator", self.operator_edit),
-                         ("Firmware commit", self.fw_edit), ("ID prefix", self.prefix_edit),
-                         ("Notes", self.notes_edit), ("Trial ID", self.trial_edit)]:
-            form.addRow(QtWidgets.QLabel(label), w)
-        for sig in (self.type_box.currentIndexChanged, self.dist.valueChanged,
+        self.prefix_edit = QtWidgets.QLineEdit(placeholderText="trial")
+        self.trial_edit = QtWidgets.QLineEdit(placeholderText="filled in automatically")
+        for label, w in [("Firmware commit", self.fw_edit), ("ID prefix", self.prefix_edit),
+                         ("Trial ID", self.trial_edit)]:
+            self.details.form.addRow(QtWidgets.QLabel(label), w)
+        self.details.hide()
+        details_btn = QtWidgets.QToolButton(text="Details (optional)", checkable=True)
+        details_btn.setToolButtonStyle(QtCore.Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        details_btn.setArrowType(QtCore.Qt.ArrowType.RightArrow)
+        details_btn.setStyleSheet("QToolButton{border:none;color:#d0d4d8;font-size:14px}")
+
+        def show_details(on):
+            self.details.setVisible(on)
+            details_btn.setArrowType(QtCore.Qt.ArrowType.DownArrow if on
+                                     else QtCore.Qt.ArrowType.RightArrow)
+
+        details_btn.toggled.connect(show_details)
+        self.details_btn = details_btn
+        for sig in (self.details.type_box.currentIndexChanged, self.details.dist.valueChanged,
                     self.prefix_edit.textChanged):
             sig.connect(lambda *_: self._suggest_trial_id())
-        self.type_box.currentIndexChanged.connect(lambda *_: self._type_changed())
         self.rec_btn = QtWidgets.QPushButton("● Record", checkable=True)
         self.rec_btn.setStyleSheet("font-size:18px;padding:10px")
         self.rec_btn.toggled.connect(self._set_recording)
         self.rec_lbl = QtWidgets.QLabel(" ", wordWrap=True, styleSheet="font-size:13px")
-        intro = cap("Record a noise-only trial first: it is the baseline for the analysis "
-                    "of the trials after it. Excitation, Impacts made and Mount are required.")
-        trial = page([intro, form, self.rec_btn,
-                      self.rec_lbl, QtWidgets.QWidget()])
+        intro = cap("Write what you are recording and press Record. Everything else is "
+                    "optional, and the notes and details can be changed later in the "
+                    "Recordings tab.")
+        trial = page([intro, cap("Notes"), self.notes_edit, self.rec_btn, self.rec_lbl,
+                      details_btn, self.details, QtWidgets.QWidget()])
         trial.layout().setStretch(trial.layout().count() - 1, 1)
-        self._type_changed()
 
         # Results: last trial and per-distance summary
         self.result_lbl = QtWidgets.QLabel("no trial recorded yet", wordWrap=True,
@@ -513,9 +619,69 @@ class PcmDashboard(QtWidgets.QMainWindow):
 
         tabs.addTab(trial, "Trial")
         tabs.addTab(results, "Results")
+        tabs.addTab(self._build_recordings(page, cap), "Recordings")
         tabs.addTab(live, "Live")
         self.tabs = tabs
         return tabs
+
+    def _build_recordings(self, page, cap):
+        """Recordings tab: every trial saved on this computer, its editor, and Share."""
+        self.recordings = []
+        self.share_proc = None
+        self.rec_list = self._table(["day", "time", "trial", "length", "notes", "shared"])
+        self.rec_list.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectionBehavior.SelectRows)
+        self.rec_list.setSelectionMode(QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection)
+        self.rec_list.horizontalHeader().setSectionResizeMode(
+            4, QtWidgets.QHeaderView.ResizeMode.Stretch)
+        self.rec_list.setMinimumHeight(280)
+        self.rec_list.itemSelectionChanged.connect(self._pick_recording)
+        buttons = QtWidgets.QHBoxLayout()
+        for text, slot in [("Refresh", lambda: self._refresh_recordings(reload_editor=True)),
+                           ("Rename...", self._rename_recording),
+                           ("Trash selected...", self._trash_recordings),
+                           ("Open folder", self._open_recordings_folder)]:
+            b = QtWidgets.QPushButton(text)
+            b.clicked.connect(slot)
+            buttons.addWidget(b)
+        buttons.addStretch()
+
+        self.edit_title = QtWidgets.QLabel("select a recording to edit it", wordWrap=True,
+                                           styleSheet="font-size:14px")
+        self.edit_notes = QtWidgets.QPlainTextEdit()
+        self.edit_notes.setFixedHeight(90)
+        self.edit_details = DetailsForm()
+        self.edit_loaded = {}
+        self.save_btn = QtWidgets.QPushButton("Save changes")
+        self.save_btn.clicked.connect(self._save_recording)
+        self.edit_lbl = QtWidgets.QLabel(" ", wordWrap=True, styleSheet="font-size:13px")
+        self.editor = page([self.edit_title, cap("Notes"), self.edit_notes, self.edit_details,
+                            self.save_btn, self.edit_lbl])
+        self.editor.layout().setContentsMargins(0, 0, 0, 0)
+        self.editor.setEnabled(False)
+
+        self.share_btn = QtWidgets.QPushButton("Share...")
+        self.share_btn.setStyleSheet("font-size:15px;padding:6px")
+        self.share_btn.clicked.connect(self._share)
+        self.share_log = QtWidgets.QPlainTextEdit(readOnly=True)
+        self.share_log.setStyleSheet("QPlainTextEdit{background:#0d1117;color:#d0d4d8;"
+                                     "font-family:Consolas;font-size:12px}")
+        self.share_log.setFixedHeight(150)
+        self.share_log.hide()
+        self.rec_folder_lbl = cap("")
+        recordings = page([
+            cap("Every recording saved on this computer, newest first. Select one to edit "
+                "it; Ctrl- or Shift-click to select several to trash. Shared: copied to "
+                "data/controlled/ (changed = edited since)."),
+            self.rec_list, buttons, self.editor,
+            cap("Share copies one day's recordings (.json and .mat) and their analysis to "
+                "data/controlled/, commits them and pushes to GitHub, like "
+                "scripts/share_trials.py. It shares the day of the selected recording."),
+            self.share_btn, self.share_log, self.rec_folder_lbl])
+        scroll = QtWidgets.QScrollArea(widgetResizable=True)
+        scroll.setHorizontalScrollBarPolicy(QtCore.Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setWidget(recordings)
+        self._refresh_recordings()
+        return scroll
 
     def _table(self, headers):
         t = QtWidgets.QTableWidget(0, len(headers))
@@ -529,32 +695,21 @@ class PcmDashboard(QtWidgets.QMainWindow):
     def _folder(self) -> Path:
         return Path(self.args.out_dir) / datetime.date.today().isoformat()
 
-    def _type_changed(self):
-        kind = self.type_box.currentText()
-        # Notes are kept per type, so footstep notes do not end up on a noise trial.
-        self.notes_by_type[self.last_type] = self.notes_edit.text()
-        self.notes_edit.setText(self.notes_by_type.get(kind, ""))
-        self.last_type = kind
-        noise = kind == "noise only"
-        self.dist.setEnabled(not noise)
-        # Fields that do not apply are greyed out and left out of the trial; their values
-        # stay in the form for when the excitation is switched back.
-        self.made.setEnabled(not noise and kind not in UNCOUNTED)
-        self.point_edit.setEnabled(not noise and kind != "walking")
-        for w in (self.height, self.tip_edit):
-            w.setEnabled(kind in DROPS)
-
     def _trial_taken(self, trial):
         stem = self._folder() / trial
         return any(stem.with_suffix(ext).exists() for ext in (".json", ".mat", ".csv"))
 
     def _suggest_trial_id(self):
-        prefix = self.prefix_edit.text().strip() or "trial"
-        self.trial_edit.setText(next_trial_id(self._folder(), prefix, self.type_box.currentText(),
-                                              self.dist.value()))
+        prefix = safe_id(self.prefix_edit.text()) or "trial"
+        # Numbered after the day's shared trials too, which may come from another computer.
+        shared = CONTROLLED / "raw" / self._folder().name
+        self.trial_edit.setText(next_trial_id(self._folder(), prefix,
+                                              self.details.type_box.currentData(),
+                                              self.details.dist.value() or None, [shared]))
 
     def _fill_ports(self):
         self.port_box.clear()
+        self.port_box.addItem("Find the board automatically", AUTO)
         self.port_box.addItem("SIM (synthetic)", SIM)
         for info in serial.tools.list_ports.comports():
             self.port_box.addItem(f"{info.device} - {info.description}", info.device)
@@ -618,35 +773,13 @@ class PcmDashboard(QtWidgets.QMainWindow):
         link = self.link
         if on:
             note = ""
-            taken = self.trial_edit.text().strip()
+            taken = safe_id(self.trial_edit.text())
             if not taken or self._trial_taken(taken):
                 self._suggest_trial_id()
                 if taken:
                     note = f" ({taken} was already used)"
-            problems = self._form_problems()
-            if problems:
-                # Refuse before anything is recorded, so no data is lost.
-                self.rec_btn.blockSignals(True)
-                self.rec_btn.setChecked(False)
-                self.rec_btn.blockSignals(False)
-                self.rec_lbl.setText("<span style='color:#ffa726'>not recording: "
-                                     + "; ".join(problems) + "</span>")
-                return
-            notes = self.notes_edit.text().strip()
-            if (self.last_notes and notes and notes == self.last_notes[0]
-                    and not self.notes_confirmed):
-                # Refuse once, so carried-over notes are read before they are saved again.
-                self.notes_confirmed = True
-                self.rec_btn.blockSignals(True)
-                self.rec_btn.setChecked(False)
-                self.rec_btn.blockSignals(False)
-                self.notes_edit.setStyleSheet("border:2px solid #ffa726")
-                self.rec_lbl.setText(
-                    "<span style='color:#ffa726'>not recording: Notes are unchanged from "
-                    f"{self.last_notes[1]}. Edit them, or press Record again to keep them."
-                    "</span>")
-                return
-            self.notes_edit.setStyleSheet("")
+            else:
+                self.trial_edit.setText(taken)
             with link.lock:
                 link.recording = []
                 link.rec_first = None
@@ -673,77 +806,35 @@ class PcmDashboard(QtWidgets.QMainWindow):
         # Start time of the first sample: arrival of the first batch less its duration.
         start_s = first[0] - first[1] / self.fs if first else self.rec_start
         start = datetime.datetime.fromtimestamp(start_s).astimezone()
-        # The recording is always saved: a taken ID gets the next free one, and a form the
-        # recorder rejects is saved with the basic fields only.
-        trial = self.trial_edit.text().strip()
+        # The recording is always saved: a taken ID gets the next free one.
+        trial = safe_id(self.trial_edit.text())
         warning = ""
-        if self._trial_taken(trial):
+        if not trial or self._trial_taken(trial):
             self._suggest_trial_id()
-            warning = f" (as {self.trial_edit.text()}, {trial} was already used)"
+            if trial:
+                warning = f" (as {self.trial_edit.text()}, {trial} was already used)"
             trial = self.trial_edit.text()
-        try:
-            args = parse_args(self._record_argv(trial))
-        except SystemExit:
-            args = parse_args(self._record_argv(trial)[:8] + ["--notes", "form rejected: "
-                                                               + self.notes_edit.text()])
-            warning += " (form rejected, saved with basic fields only)"
-        meta = build_meta(args, start)
-        if problems := validate_meta(meta):
-            warning += f" (saved, but incomplete: {'; '.join(problems)})"
+        meta = self._trial_meta(trial, start, time.time() - self.rec_start)
         paths = write_trial(capture, meta, self.args.out_dir)
-        self.last_notes = (self.notes_edit.text().strip(), trial)
-        self.notes_confirmed = False
         verdict = "checks OK" if capture.checks["ok"] else "CHECKS FAILED (see .json)"
+        kept = ("\nThe notes stay for the next recording: change them if it is different."
+                if meta["notes"] else "")
         self.rec_lbl.setText(f"{verdict}, {capture.checks['samples']:,} samples{warning}\n"
-                             f"saved {trial}.csv/.json/.mat in {paths['json'].parent}")
+                             f"saved {trial}.csv/.json/.mat in {paths['json'].parent}{kept}")
         self._suggest_trial_id()
+        self._refresh_recordings()
         self._refresh_results(show=trial, switch_tab=True)
 
-    def _notes_edited(self):
-        self.notes_confirmed = False
-        self.notes_edit.setStyleSheet("")
-
-    def _record_argv(self, trial, duration=None):
-        duration = time.time() - self.rec_start if duration is None else duration
-        argv = ["--port", self.port, "--trial-id", trial,
-                "--duration", f"{duration:.3f}", "--fs-hz", str(self.fs)]
-        kind = self.type_box.currentText()
-        if kind == "noise only":
-            argv.append("--noise-only")
-        else:
-            argv += ["--excitation-type", kind, "--distance-m", f"{self.dist.value():g}"]
-            if self.made.isEnabled() and self.made.value():
-                argv += ["--impacts", str(self.made.value())]
-            if self.height.isEnabled() and self.height.value():
-                argv += ["--drop-height-cm", f"{self.height.value():g}"]
-            for flag, edit in [("--excitation-point", self.point_edit), ("--tip", self.tip_edit)]:
-                if edit.isEnabled() and edit.text().strip():
-                    argv += [flag, edit.text().strip()]
-        if self.mount_box.currentText():
-            argv += ["--mount-method", self.mount_box.currentText()]
-        if self.block_box.currentText().strip():
-            argv += ["--baseline-noise-id", self.block_box.currentText().strip()]
-        for flag, edit in [("--floor-material", self.floor_edit),
-                           ("--operator", self.operator_edit), ("--fw-commit", self.fw_edit),
-                           ("--notes", self.notes_edit)]:
-            if edit.text().strip():
-                argv += [flag, edit.text().strip()]
-        return argv
-
-    def _form_problems(self):
-        """What the form is missing for a trial (validate_meta), checked before Record."""
-        try:
-            args = parse_args(self._record_argv(self.trial_edit.text().strip() or "t", 1.0))
-        except SystemExit:
-            return ["the recorder rejected the form"]
-        problems = [] if self.prefix_edit.text().strip() else [
-            "ID prefix is required: one per condition, e.g. tile_bare_drop"]
-        return problems + validate_meta({
-            "noise_only": args.noise_only,
-            "sensor_mount": {"method": args.mount_method},
-            "excitation": {"type": args.excitation_type},
-            "impacts_made": args.impacts,
-        })
+    def _trial_meta(self, trial, start, duration):
+        """The sidecar for a recording: the recorder's fields, then the notes and whatever
+        details the form gives (all optional)."""
+        argv = ["--port", self.link.port or self.port, "--trial-id", trial,
+                "--duration", f"{max(duration, 0.001):.3f}", "--fs-hz", str(self.fs)]
+        if self.fw_edit.text().strip():
+            argv += ["--fw-commit", self.fw_edit.text().strip()]
+        notes = self.notes_edit.toPlainText().strip() or None
+        return apply_fields(build_meta(parse_args(argv), start),
+                            {**self.details.values(), "notes": notes})
 
     def _refresh_results(self, show=None, switch_tab=False):
         folder = self._folder()
@@ -776,7 +867,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
                                 f"{self.out_folder}{note}")
         rows = impacts.summarize(trials)
         self._fill(self.summary_table, [
-            [r["excitation"], self._m(r["distance_m"]), r["trials"],
+            [r["excitation"] or "-", self._m(r["distance_m"]), r["trials"],
              f"{r['impacts_found']} / {'-' if r['impacts_made'] is None else r['impacts_made']}",
              "-" if r["impacts_made"] is None else f"{r['impacts_found'] - r['impacts_made']:+d}",
              self._mean_sd(r, impacts.DETECT)] for r in rows])
@@ -791,9 +882,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.trial_box.clear()
         for t in reversed(trials):
             meta = t["meta"]
-            kind = "noise only" if t["result"] is None else (
-                f"{meta['excitation']['type']}, {self._m(meta.get('distance_m'))}")
-            self.trial_box.addItem(f"{meta['trial_id']}  ({kind})", meta["trial_id"])
+            self.trial_box.addItem(f"{meta['trial_id']}  ({describe(meta)})", meta["trial_id"])
         self.trial_box.setCurrentIndex(max(0, self.trial_box.findData(self.shown_id)))
         self.trial_box.blockSignals(False)
         if shown is not None and switch_tab:
@@ -823,7 +912,262 @@ class PcmDashboard(QtWidgets.QMainWindow):
             return
         self.shown_id = None
         self._refresh_results()
+        self._refresh_recordings(reload_editor=True)
         self.folder_lbl.setText(f"{trial} moved to {where}. " + self.folder_lbl.text())
+
+    # ---- Recordings tab
+    def _refresh_recordings(self, reload_editor=False):
+        """Refill the list, keeping the selection. The editor is reloaded only when asked,
+        so a recording saved meanwhile does not wipe edits that are not saved yet."""
+        selected = {r["json"] for r in self._selected_recordings()}
+        try:
+            self.recordings = list_recordings(self.args.out_dir)
+        except OSError as e:
+            self.recordings = []
+            self.rec_folder_lbl.setText(f"cannot read {self.args.out_dir}: {e}")
+        table = self.rec_list
+        table.blockSignals(True)
+        table.clearSelection()
+        table.setRowCount(len(self.recordings))
+        colors = {"yes": COLORS["event"], "changed": COLORS["edge"]}
+        for r, rec in enumerate(self.recordings):
+            meta = rec["meta"]
+            checks = meta.get("checks") or {}
+            length = ("" if not checks.get("samples") or not meta.get("fs_hz")
+                      else f"{checks['samples'] / meta['fs_hz']:.0f} s")
+            notes = (meta.get("notes") or "").replace("\n", " ")
+            cells = [rec["day"], (meta.get("start_time") or "")[11:19], meta["trial_id"],
+                     length, notes if len(notes) <= 80 else notes[:77] + "...", rec["shared"]]
+            for c, v in enumerate(cells):
+                item = QtWidgets.QTableWidgetItem(v)
+                if c == 4:
+                    item.setToolTip(meta.get("notes") or "")
+                if c == 5 and v in colors:
+                    item.setForeground(QtGui.QColor(colors[v]))
+                table.setItem(r, c, item)
+            if rec["json"] in selected:
+                flags = QtCore.QItemSelectionModel.SelectionFlag
+                table.selectionModel().select(table.model().index(r, 0),
+                                              flags.Select | flags.Rows)
+        table.blockSignals(False)
+        self.rec_folder_lbl.setText(f"{len(self.recordings)} recordings in {self.args.out_dir}")
+        if reload_editor:
+            self._pick_recording()
+        self._update_share_btn()
+
+    def _selected_recordings(self):
+        rows = sorted({i.row() for i in self.rec_list.selectedIndexes()})
+        return [self.recordings[r] for r in rows if r < len(self.recordings)]
+
+    def _pick_recording(self):
+        rows = self._selected_recordings()
+        self._update_share_btn()
+        if len(rows) != 1:
+            self.editor.setEnabled(False)
+            self.edit_title.setText("select one recording to edit it" if not rows
+                                    else f"{len(rows)} recordings selected")
+            self.edit_lbl.setText(" ")
+            return
+        rec = rows[0]
+        meta = rec["meta"]
+        self.edit_title.setText(f"<b>{meta['trial_id']}</b>, {rec['day']} "
+                                f"{(meta.get('start_time') or '')[11:19]} ({describe(meta)})")
+        noise = [r["meta"]["trial_id"] for r in reversed(self.recordings)
+                 if r["day"] == rec["day"] and impacts.is_noise(r["meta"])]
+        box = self.edit_details.block_box
+        box.clear()
+        box.addItems(noise)
+        self.edit_details.set_values(meta)
+        self.edit_notes.setPlainText(meta.get("notes") or "")
+        self.edit_loaded = self._edited_values()
+        self.edit_lbl.setText(" ")
+        self.editor.setEnabled(True)
+
+    def _edited_values(self):
+        return {**self.edit_details.values(),
+                "notes": self.edit_notes.toPlainText().strip() or None}
+
+    def _save_recording(self):
+        rows = self._selected_recordings()
+        if len(rows) != 1:
+            return
+        rec = rows[0]
+        # Only what was changed in the editor, so fields it shows differently (older
+        # sidecars, rounding) are left as they are.
+        changes = {k: v for k, v in self._edited_values().items() if v != self.edit_loaded.get(k)}
+        if not changes:
+            self.edit_lbl.setText("nothing changed")
+            return
+        try:
+            changed = edit_trial(rec["json"], changes)
+        except (OSError, ValueError) as e:  # e.g. the .mat open in MATLAB
+            QtWidgets.QMessageBox.warning(self, "Save changes", f"Could not save: {e}")
+            return
+        self._refresh_recordings(reload_editor=True)
+        self.edit_lbl.setText(f"saved {', '.join(changed)}; the old values are kept in the "
+                              "trial's edit_note")
+        if rec["json"].parent.resolve() == self._folder().resolve():
+            self._refresh_results(show=self.shown_id)
+
+    def _rename_recording(self):
+        rows = self._selected_recordings()
+        if len(rows) != 1:
+            QtWidgets.QMessageBox.information(self, "Rename recording",
+                                              "Select one recording to rename it.")
+            return
+        rec = rows[0]
+        old = rec["meta"]["trial_id"]
+        copy = rec["shared_json"] if rec["shared"] in ("yes", "changed") else None
+        prompt = f"New name for {old}:"
+        if copy is not None:
+            prompt += ("\n\nIt is shared already: the copy in data/controlled/ is renamed too, "
+                       "and the next Share pushes the new name.")
+        elif rec["shared"]:
+            prompt += f"\n\nIt is shared already {rec['shared']}; that copy keeps its name."
+        new, ok = QtWidgets.QInputDialog.getText(self, "Rename recording", prompt, text=old)
+        new = safe_id(new)
+        if not ok or not new or new == old:
+            return
+        # Another recording shared under that name (from the other computer, say) would be
+        # overwritten by the next Share.
+        other = CONTROLLED / "raw" / rec["day"] / f"{new}.json"
+        if other.exists() and other != copy:
+            theirs = json.loads(other.read_text(encoding="utf-8")).get("start_time")
+            if theirs != rec["meta"].get("start_time"):
+                QtWidgets.QMessageBox.warning(
+                    self, "Rename recording", f"{new} is already shared for another recording "
+                    f"from {rec['day']}. Pick another name.")
+                return
+        folder = rec["json"].parent
+        try:
+            new_json = rename_trial(rec["json"], new)
+        except (OSError, ValueError) as e:  # taken, not a file name, or a file open elsewhere
+            QtWidgets.QMessageBox.warning(self, "Rename recording", f"Not renamed: {e}")
+            return
+        note = ""
+        try:
+            impacts.rename_outputs(impacts.analysis_folder(folder), old, new)
+        except OSError as e:
+            note += f"; its analysis files could not be renamed: {e}"
+        if copy is not None:
+            try:
+                rename_trial(copy, new)
+                impacts.rename_outputs(impacts.analysis_folder(copy.parent), old, new)
+                note += "; the shared copy too"
+            except (OSError, ValueError) as e:
+                note += f"; the shared copy could not be renamed: {e}"
+        if self.shown_id == old:
+            self.shown_id = new
+        if folder.resolve() == self._folder().resolve():
+            self._refresh_results(show=self.shown_id)
+        elif impacts.analysis_folder(folder).is_dir():
+            # The day-wide CSVs name every trial; analyze that day again to update them.
+            try:
+                impacts.write_outputs(
+                    impacts.analyze_folder(folder, impacts.THRESHOLD_DB, self.analysis_cache),
+                    impacts.analysis_folder(folder))
+            except OSError as e:  # e.g. a CSV open in Excel
+                note += f"; the day's analysis could not be updated: {e}"
+        self.rec_list.clearSelection()
+        self._refresh_recordings()
+        row = next((r for r, x in enumerate(self.recordings) if x["json"] == new_json), None)
+        if row is not None:
+            self.rec_list.selectRow(row)
+        self.edit_lbl.setText(f"renamed {old} to {new}{note}")
+
+    def _trash_recordings(self):
+        rows = self._selected_recordings()
+        if not rows:
+            return
+        names = [r["meta"]["trial_id"] for r in rows]
+        listed = "\n".join(names[:12]) + (f"\n... and {len(names) - 12} more" if len(names) > 12
+                                          else "")
+        shared = sum(bool(r["shared"]) for r in rows)
+        also = (f"\n\n{shared} of them are shared already: this does not remove the copies in "
+                "data/controlled/ or on GitHub." if shared else "")
+        answer = QtWidgets.QMessageBox.question(
+            self, "Trash recordings",
+            f"Move {len(rows)} recording{'s' if len(rows) > 1 else ''} (.csv, .json, .mat) to "
+            f"the Recycle Bin?\n\n{listed}\n\nYou can restore them from the Recycle Bin.{also}")
+        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        failed = []
+        for r in rows:
+            try:
+                trash_trial(r["json"])
+            except OSError as e:
+                failed.append(f"{r['meta']['trial_id']}: {e}")
+        if failed:
+            QtWidgets.QMessageBox.warning(self, "Trash recordings", "\n".join(failed))
+        self.rec_list.clearSelection()
+        self._refresh_recordings(reload_editor=True)
+        if self.shown_id in names:
+            self.shown_id = None
+        self._refresh_results(show=self.shown_id)
+
+    def _open_recordings_folder(self):
+        rows = self._selected_recordings()
+        folder = rows[0]["json"].parent if rows else Path(self.args.out_dir)
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl.fromLocalFile(str(folder)))
+
+    def _share_day(self):
+        """The folder of the day to share: the selected recording's, else the newest."""
+        rows = self._selected_recordings() or self.recordings[:1]
+        return rows[0]["json"].parent if rows else None
+
+    def _update_share_btn(self):
+        day = self._share_day()
+        running = self.share_proc is not None
+        self.share_btn.setEnabled(day is not None and not running)
+        self.share_btn.setText("Sharing..." if running else
+                               "Share..." if day is None else f"Share {day.name} to GitHub...")
+
+    def _share(self):
+        day = self._share_day()
+        if day is None or self.share_proc is not None:
+            return
+        on_day = [r for r in self.recordings if r["json"].parent == day]
+        new = sum(not r["shared"] for r in on_day)
+        answer = QtWidgets.QMessageBox.question(
+            self, "Share recordings",
+            f"Share the {len(on_day)} recordings from {day.name} ({new} not shared yet)?\n\n"
+            "This copies their .json and .mat files and their analysis to data/controlled/, "
+            "commits them, and pushes to GitHub (scripts/share_trials.py). Only "
+            "data/controlled/ is committed.")
+        if answer != QtWidgets.QMessageBox.StandardButton.Yes:
+            return
+        proc = QtCore.QProcess(self)
+        proc.setProgram(sys.executable)
+        proc.setArguments(["-u", str(SHARE_SCRIPT), str(day)])
+        proc.setWorkingDirectory(str(REPO_ROOT))
+        proc.setProcessChannelMode(QtCore.QProcess.ProcessChannelMode.MergedChannels)
+        env = QtCore.QProcessEnvironment.systemEnvironment()
+        # No window to answer git in: fail rather than wait for a password or a merge message.
+        env.insert("GIT_TERMINAL_PROMPT", "0")
+        env.insert("GIT_MERGE_AUTOEDIT", "no")
+        proc.setProcessEnvironment(env)
+        proc.readyReadStandardOutput.connect(self._share_output)
+        proc.finished.connect(self._share_done)
+        self.share_proc = proc
+        self.share_log.clear()
+        self.share_log.show()
+        self.share_log.appendPlainText(f"> python scripts/share_trials.py {day}")
+        self._update_share_btn()
+        proc.start()
+
+    def _share_output(self):
+        text = bytes(self.share_proc.readAllStandardOutput()).decode(errors="replace")
+        self.share_log.moveCursor(QtGui.QTextCursor.MoveOperation.End)
+        self.share_log.insertPlainText(text.replace("\r\n", "\n"))
+        self.share_log.moveCursor(QtGui.QTextCursor.MoveOperation.End)
+
+    def _share_done(self, code, status):
+        self._share_output()
+        ok = status == QtCore.QProcess.ExitStatus.NormalExit and code == 0
+        self.share_log.appendPlainText(
+            "done" if ok else f"FAILED (exit code {code}): see the messages above")
+        self.share_proc = None
+        self._refresh_recordings()
 
     def _sync_baselines(self, folder):
         """Refill the baseline dropdown with the folder's noise-only trials, keeping the
@@ -843,13 +1187,14 @@ class PcmDashboard(QtWidgets.QMainWindow):
         self.baseline_box.setCurrentIndex(idx)
         self.baseline_box.blockSignals(False)
         # The form's block baseline follows the newest noise-only trial when one is added.
-        text = self.block_box.currentText().strip()
+        block_box = self.details.block_box
+        text = block_box.currentText().strip()
         known, self.known_noise = self.known_noise, set(ids)
         if ids and (not text or ids[-1] not in known):
             text = ids[-1]
-        self.block_box.clear()
-        self.block_box.addItems(ids)
-        self.block_box.setCurrentText(text)
+        block_box.clear()
+        block_box.addItems(ids)
+        block_box.setCurrentText(text)
         return self.baseline_box.currentData()
 
     def _show_trial(self, t):
@@ -901,7 +1246,7 @@ class PcmDashboard(QtWidgets.QMainWindow):
             orange.format(f" (the trial records {row['baseline_recorded']})")
             if row["baseline_mismatch"] else "")
         self.result_lbl.setText(
-            f"<b>{meta['trial_id']}</b>: {row['excitation']} at {self._m(row['distance_m'])}, "
+            f"<b>{meta['trial_id']}</b>: {describe(meta)}, "
             f"point {row['excitation_point_id'] or '-'}, mount {row['mount'] or '-'}<br>"
             f"{counts}<br>baseline: {baseline} "
             f"({t['result']['baseline'][impacts.DETECT]:.2f} counts)")
@@ -1165,19 +1510,28 @@ class PcmDashboard(QtWidgets.QMainWindow):
             self.source = None
 
     def closeEvent(self, ev):
+        if self.share_proc is not None:
+            # Closing would stop git in the middle of the commit or push.
+            QtWidgets.QMessageBox.information(
+                self, "Sharing", "Sharing is still running; close the window when it is done.")
+            ev.ignore()
+            return
         self.shutdown()
         super().closeEvent(ev)
 
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--port", default=SIM, help="COM port, or SIM for synthetic data")
+    ap.add_argument("--port", default=AUTO,
+                    help="COM port; AUTO (the default) finds the board, SIM gives synthetic data")
     ap.add_argument("--fs-hz", type=float, default=NOMINAL_FS_HZ,
                     help="output rate of the flashed firmware build")
     ap.add_argument("--out-dir", default=DEFAULT_OUT_DIR, help="where Record saves trials")
     ap.add_argument("--snapshot", default=None, help=argparse.SUPPRESS)
     ap.add_argument("--snapshot-after", type=float, default=15, help=argparse.SUPPRESS)
     args = ap.parse_args()
+    if args.port.upper() in (AUTO, SIM):
+        args.port = args.port.upper()
 
     pg.setConfigOptions(background="#0d1117", foreground="#d0d4d8")
     app = pg.mkQApp("VPU PCM")

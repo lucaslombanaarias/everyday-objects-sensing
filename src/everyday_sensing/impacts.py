@@ -450,6 +450,31 @@ def analysis_folder(folder, detection: Detection = DETECTION, baseline_trial=Non
     return out / "_".join(variant) if variant else out
 
 
+def rename_outputs(out: Path, old: str, new: str) -> None:
+    """Follow a renamed trial (acquisition.record.rename_trial) in an analysis folder and
+    its variant subfolders: events_<trial>.csv, keeping its tags, and <trial>.analysis.json.
+    A variant subfolder named after it (baseline_<trial>/, for a noise-only trial) is
+    renamed too. The day-wide CSVs keep the old name until write_outputs runs again."""
+    out = Path(out)
+    if not out.is_dir():
+        return
+    subfolders = [p for p in out.iterdir() if p.is_dir()]
+    for folder in [out, *subfolders]:
+        events = folder / f"events_{old}.csv"
+        if events.exists():
+            events.replace(folder / f"events_{new}.csv")
+        record = folder / f"{old}.analysis.json"
+        if record.exists():
+            data = json.loads(record.read_text(encoding="utf-8"))
+            data["trial_id"] = new
+            (folder / f"{new}.analysis.json").write_text(
+                json.dumps(data, indent=2) + "\n", encoding="utf-8")
+            record.unlink()
+    for folder in subfolders:
+        if folder.name.endswith(f"baseline_{old}"):
+            folder.rename(folder.with_name(folder.name[: -len(old)] + new))
+
+
 def _label(key: str) -> str:
     """CSV column name: the 50 ms band levels are marked as features."""
     for band in BANDS:

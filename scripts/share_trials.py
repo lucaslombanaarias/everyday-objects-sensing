@@ -10,7 +10,9 @@ data/controlled/analysis/<date>/, then commits and pushes. The commit message sa
 new, e.g. "Add 19 toilet trials from 2026-11-04", or that the day's trials or their analysis
 were updated; --message gives one instead. Trials already published under another name
 (renamed after sharing) are skipped, and so are the folder's day-wide summary CSVs then,
-since they carry the old names.
+since they carry the old names. Nothing is shared when a trial's name is already taken in
+data/controlled/ by a different recording (another computer's trial_01, say): rename it
+first.
 
 Without an argument it takes the newest day in this clone's data/raw/; give a date for
 another day, or the path of any folder of trials (one recorded in another copy of the repo
@@ -59,6 +61,22 @@ def published_under_other_names(sidecars: list[Path], dst: Path) -> list[tuple[s
         if published.get(start, p.stem) != p.stem:
             pairs.append((p.stem, published[start]))
     return pairs
+
+
+def taken_by_other_recordings(sidecars: list[Path], dst: Path) -> list[str]:
+    """Trial IDs among sidecars already in dst for a different recording (another start
+    time), as when two computers both record trial_01 on one day: copying them would
+    overwrite the shared recording."""
+    taken = []
+    for p in sidecars:
+        shared = dst / p.name
+        if not shared.exists():
+            continue
+        mine = json.loads(p.read_text(encoding="utf-8")).get("start_time")
+        theirs = json.loads(shared.read_text(encoding="utf-8")).get("start_time")
+        if mine != theirs:
+            taken.append(p.stem)
+    return taken
 
 
 def commit_message(date: str, new: dict[str, str | None], trials_changed: bool) -> str:
@@ -118,6 +136,12 @@ def main(argv=None):
               f"{renamed[0][0]} as {renamed[0][1]}")
         if not trials:
             raise SystemExit("nothing new to share")
+    clashes = taken_by_other_recordings([p for p in trials if p.suffix == ".json"], dst)
+    if clashes:
+        raise SystemExit(
+            f"not sharing: {', '.join(clashes)} {'is' if len(clashes) == 1 else 'are'} already "
+            f"shared for another recording from {date} (from another computer?), which this "
+            "would overwrite. Rename yours first, in the dashboard's Recordings tab.")
     dst.mkdir(parents=True, exist_ok=True)
     for f in trials:
         shutil.copy2(f, dst / f.name)

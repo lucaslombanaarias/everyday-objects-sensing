@@ -157,27 +157,25 @@ The mount changes what the sensor hears. On 10/18 a different mount and soft foo
 
 ## 7. Dashboard and naming
 
-```
-python tools/dashboard/vpu_pcm_dashboard.py --port COM3
-```
-
-Use the port from the list. On another laptop, set up the repo's environment first and run it with that environment's Python. Watch the live waveform for 30 s with everyone still: it should be flat apart from the hum. Tap the floor about 0.3 m away and confirm a dot appears, without pressing Record.
+Double-click `dashboard.bat` in the repo folder (or run `python tools/dashboard/vpu_pcm_dashboard.py`); it finds the board by itself. Watch the live waveform for 30 s with everyone still: it should be flat apart from the hum. Tap the floor about 0.3 m away and confirm a dot appears, without pressing Record.
 
 ### Trial form
 
+The dashboard requires none of these: Notes are on the Trial tab and the rest are under Details, all optional, and all can be changed after recording in the Recordings tab. For this procedure, fill them in:
+
 | Field | What to enter |
 |---|---|
-| Excitation | `ball_drop`, `drop_stand`, `stomp`, `single_step`, `double_step`, `walking`, or noise only. Required. |
-| Impacts made | The planned number (section 9). Required: Record refuses to start without it. |
-| Excitation point | `P1` and so on. Greyed out for walking. |
+| Excitation | `ball_drop`, `drop_stand`, `stomp`, `single_step`, `double_step`, `walking`, or noise only. |
+| Impacts made | The planned number (section 9). |
+| Excitation point | `P1` and so on. None for walking. |
 | Sensor radius | Impact point (or circle) to sensor centre, in m. |
 | Drop height, Tip | Drops only: height in cm, and the ball (type, mass). |
 | Floor | Material and room. |
-| Mount | See section 6. Required. It starts blank at launch; Record refuses until one is picked, then it stays for the following trials. |
+| Mount | See section 6. It stays for the following trials. |
 | Baseline noise | Fills itself with the newest noise trial. Leave it. |
 | Operator | Who runs the laptop. |
-| Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. When they are unchanged from the last saved trial, Record stops once and outlines Notes in orange; edit them, or press Record again to keep them. |
-| ID prefix | One per block, see below. Required: it starts blank, and Record refuses until it is filled. |
+| Notes | What has no field: walker, footwear, mass on top, object, cadence, anything unusual. Check it before each trial: notes carry over from the previous one. |
+| ID prefix | One per block, see below. Blank gives `trial`. |
 | Trial ID | Fills itself in. Do not type one. |
 
 ### Naming

@@ -13,6 +13,7 @@ measured against the host clock versus the nominal rate.
 import argparse
 import datetime
 import json
+import os
 import platform
 import re
 import subprocess
@@ -148,12 +149,33 @@ def distance_label(d: float) -> str:
     return f"{d:g}".replace(".", "p") + "m"
 
 
-def next_trial_id(folder: Path, prefix: str, kind: str, distance: float) -> str:
-    """<prefix>_<distance or 'noise'>_<nn>, numbered after the trials already in folder."""
-    stem = f"{prefix}_{'noise' if kind == 'noise only' else distance_label(distance)}"
-    taken = [int(m.group(1)) for f in Path(folder).glob(f"{stem}_*.json")
+def next_trial_id(folder: Path, prefix: str, kind: str | None, distance: float | None,
+                  also=()) -> str:
+    """<prefix>_<distance or 'noise'>_<nn>, numbered after the trials already in folder
+    and in the folders in also (e.g. the same day's shared trials, which may come from
+    another computer); <prefix>_<nn> when neither kind nor distance is given."""
+    if kind == "noise only":
+        stem = f"{prefix}_noise"
+    elif distance:
+        stem = f"{prefix}_{distance_label(distance)}"
+    else:
+        stem = prefix
+    taken = [int(m.group(1)) for d in (folder, *also) for f in Path(d).glob(f"{stem}_*.json")
              if (m := re.fullmatch(re.escape(stem) + r"_(\d+)", f.stem))]
     return f"{stem}_{max(taken, default=0) + 1:02d}"
+
+
+ESPRESSIF_VID = 0x303A
+"""USB vendor ID of the XIAO ESP32-C6's built-in USB serial port (VID:PID 303A:1001)."""
+
+
+def find_board_port(ports) -> str | None:
+    """The board's serial port among serial.tools.list_ports.comports(): the one with
+    Espressif's vendor ID (the first, by name, if there are several), else None. Other
+    ports (Bluetooth, other USB devices) are never taken for the board, so nothing else
+    is sent its commands."""
+    espressif = sorted(p.device for p in ports if p.vid == ESPRESSIF_VID)
+    return espressif[0] if espressif else None
 
 def _version(package: str) -> str | None:
     try:
@@ -302,6 +324,169 @@ def trash_trial(json_path: Path) -> str:
     if left:
         raise OSError(f"could not move to {where}: {left}")
     return where
+
+
+EDITABLE = ("notes", "noise_only", "excitation.type", "impacts_made", "excitation_point_id",
+            "distance_m", "excitation.drop_height_cm", "excitation.tip", "floor_material",
+            "sensor_mount.method", "baseline_noise_id", "operator")
+"""Sidecar fields that can be changed after recording (edit_trial); a dot is a nested
+field, e.g. excitation.type."""
+
+
+def get_field(meta: dict, key: str):
+    for part in key.split("."):
+        meta = (meta or {}).get(part)
+    return meta
+
+
+def apply_fields(meta: dict, fields: dict) -> dict:
+    """Set fields named as in EDITABLE (e.g. {"excitation.type": "stomp"}) in meta."""
+    for key, value in fields.items():
+        *parents, last = key.split(".")
+        target = meta
+        for part in parents:
+            if not isinstance(target.get(part), dict):
+                target[part] = {}
+            target = target[part]
+        target[last] = value
+    return meta
+
+
+def _add_edit_note(sidecar: dict, note: str, today: datetime.date | None) -> None:
+    note = f"{(today or datetime.date.today()).isoformat()}: {note}"
+    sidecar["edit_note"] = "; ".join(filter(None, [sidecar.get("edit_note"), note]))
+
+
+def _write_mat_meta(mat_path: Path, sidecar: dict) -> None:
+    """Replace the metadata stored in a trial's .mat with the sidecar's, keeping its data."""
+    data = {k: v for k, v in scipy.io.loadmat(mat_path).items() if not k.startswith("__")}
+    data["meta"] = _for_mat({k: v for k, v in sidecar.items() if k != "checks"})
+    if "checks" in sidecar:
+        data["checks"] = _for_mat(sidecar["checks"])
+    tmp = mat_path.with_name(mat_path.name + ".tmp")
+    scipy.io.savemat(tmp, data, appendmat=False, long_field_names=True, do_compression=True)
+    os.replace(tmp, mat_path)
+
+
+def _write_json(path: Path, sidecar: dict) -> None:
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(json.dumps(sidecar, indent=2) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def edit_trial(json_path: Path, fields: dict, today: datetime.date | None = None) -> list[str]:
+    """Change fields of a saved trial (see EDITABLE) in its sidecar and in the copy of the
+    metadata in its .mat, and add the old values to edit_note. Returns the fields that
+    changed; nothing is written when none did."""
+    json_path = Path(json_path)
+    bad = [k for k in fields if k not in EDITABLE]
+    if bad:
+        raise ValueError(f"cannot edit {', '.join(bad)}")
+    sidecar = json.loads(json_path.read_text(encoding="utf-8"))
+    changed = [(k, get_field(sidecar, k)) for k, v in fields.items() if get_field(sidecar, k) != v]
+    if not changed:
+        return []
+    apply_fields(sidecar, {k: fields[k] for k, _ in changed})
+    _add_edit_note(sidecar, "edited in the dashboard; before: " + ", ".join(
+        f"{k} {old!r}" for k, old in changed), today)
+    mat_path = json_path.with_name((sidecar.get("files") or {}).get("mat", json_path.stem + ".mat"))
+    if mat_path.exists():
+        _write_mat_meta(mat_path, sidecar)
+    _write_json(json_path, sidecar)
+    return [k for k, _ in changed]
+
+
+TRIAL_ID = re.compile(r"\w[\w.-]*")
+"""A trial ID that is also a usable file name."""
+
+
+def rename_trial(json_path: Path, new_id: str, today: datetime.date | None = None) -> Path:
+    """Rename a saved trial: its .json, .mat and .csv, its trial_id and file names in the
+    sidecar and in the .mat, with the old name added to edit_note. Other trials in its
+    folder that name it as their baseline_noise_id (it is a noise-only trial) are changed
+    to the new name too, with edit_trial. Returns the new sidecar path.
+
+    Raises ValueError for a name that cannot be a file name, FileExistsError when the name
+    is taken in the folder, and OSError when a file cannot be moved (e.g. the .mat is open
+    in MATLAB); then nothing is renamed."""
+    json_path = Path(json_path)
+    folder = json_path.parent
+    if not TRIAL_ID.fullmatch(new_id):
+        raise ValueError(f"{new_id!r} cannot be a trial ID: use letters, digits, _ . and -")
+    sidecar = json.loads(json_path.read_text(encoding="utf-8"))
+    old = sidecar["trial_id"]
+    if new_id == old:
+        return json_path
+    taken = [p.name for p in (folder / f"{new_id}.{ext}" for ext in ("json", "mat", "csv"))
+             if p.exists()]
+    if taken:
+        raise FileExistsError(f"{', '.join(taken)} already in {folder}")
+    files = sidecar.get("files") or {}
+    moved = []
+    try:
+        for ext in ("csv", "mat"):
+            src = folder / files.get(ext, f"{old}.{ext}")
+            if src.exists():
+                dst = folder / f"{new_id}.{ext}"
+                os.rename(src, dst)
+                moved.append((src, dst))
+        sidecar["trial_id"] = new_id
+        sidecar["files"] = {**files, "csv": f"{new_id}.csv", "mat": f"{new_id}.mat"}
+        _add_edit_note(sidecar, f"renamed from {old} to {new_id} in the dashboard", today)
+        if (folder / f"{new_id}.mat").exists():
+            _write_mat_meta(folder / f"{new_id}.mat", sidecar)
+    except OSError:
+        for src, dst in reversed(moved):
+            os.rename(dst, src)
+        raise
+    # The sidecar goes last, as in write_trial: once it exists, the other files are there.
+    new_json = folder / f"{new_id}.json"
+    _write_json(new_json, sidecar)
+    json_path.unlink()
+    for path in folder.glob("*.json"):
+        try:
+            meta = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(meta, dict) and "checks" in meta and meta.get("baseline_noise_id") == old:
+            edit_trial(path, {"baseline_noise_id": new_id}, today)
+    return new_json
+
+
+def list_recordings(out_dir: Path = DEFAULT_OUT_DIR, controlled: Path | None = None) -> list[dict]:
+    """Every trial saved under out_dir/<day>/, newest first: its sidecar path and metadata,
+    and whether it is shared, i.e. in controlled/raw/<day>/ (matched by start time, so a
+    copy renamed after sharing counts): "yes", "changed" when the local sidecar differs
+    from the shared one, "as <id>" when it was shared under another name, else "".
+    shared_json is the shared copy's sidecar, or None."""
+    controlled = REPO_ROOT / "data" / "controlled" if controlled is None else Path(controlled)
+    out = []
+    for day in sorted(p for p in Path(out_dir).glob("*") if p.is_dir()):
+        shared = {}
+        for p in (controlled / "raw" / day.name).glob("*.json"):
+            try:
+                m = json.loads(p.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            shared[m.get("start_time")] = (m, p)
+        for path in day.glob("*.json"):
+            try:
+                meta = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                continue
+            if not (isinstance(meta, dict) and "checks" in meta and "files" in meta):
+                continue  # not a trial sidecar
+            copy, copy_path = shared.get(meta.get("start_time"), (None, None))
+            if copy is None:
+                status = ""
+            elif copy.get("trial_id") != meta.get("trial_id"):
+                status = f"as {copy.get('trial_id')}"
+            else:
+                status = "yes" if copy == meta else "changed"
+            out.append({"json": path, "day": day.name, "meta": normalize_meta(meta),
+                        "shared": status, "shared_json": copy_path})
+    out.sort(key=lambda r: (r["day"], r["meta"].get("start_time") or ""), reverse=True)
+    return out
 
 
 def build_meta(args: argparse.Namespace, start: datetime.datetime) -> dict:

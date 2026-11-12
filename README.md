@@ -22,24 +22,11 @@ To record with the PCM dashboard on a Windows laptop that has never run this rep
    cd everyday-objects-sensing
    ```
 
-3. Install the requirements into that Python:
+3. Plug in the board and double-click `dashboard.bat` in the repo folder. The first time, it installs the requirements (`python -m pip install -r requirements.txt`, into a `.venv` there if one exists, else into that Python). It then finds the board by itself: the "USB Serial Device" with `VID:PID=303A:1001`, never the other ports (often Bluetooth). For a desktop shortcut, right-click `dashboard.bat` > Show more options > Send to > Desktop (create shortcut).
 
-   ```
-   python -m pip install -r requirements.txt
-   ```
+   The window can take half a minute to appear: on a slower laptop, importing `scipy.signal` alone takes about 30 s, and 2.5 minutes the first time after installing. From a terminal, `python tools/dashboard/vpu_pcm_dashboard.py` does the same; add `--port COM5` for a given port, or `--port SIM` to run without a board.
 
-   Installed this way there is nothing to activate. In a virtual environment instead, run `.\.venv\Scripts\Activate.ps1` in every new window before anything else, or `python` will not find the packages.
-
-4. Plug in the board and find its port. The board is the "USB Serial Device" with `VID:PID=303A:1001`; the other ports (often Bluetooth) are not it. Then start the dashboard from the repo folder with that port:
-
-   ```
-   python -m serial.tools.list_ports -v
-   python tools/dashboard/vpu_pcm_dashboard.py --port COM5
-   ```
-
-   The window can take half a minute to appear: on a slower laptop, importing `scipy.signal` alone takes about 30 s, and 2.5 minutes the first time after installing. `--port SIM` runs the dashboard without a board.
-
-To share that laptop's trials with `python scripts/share_trials.py` (see [the dashboard README](tools/dashboard/README.md)), git needs a name and email once, and the first push asks you to sign in to GitHub:
+To share that laptop's trials (the Share button in the dashboard's Recordings tab, or `python scripts/share_trials.py`; see [the dashboard README](tools/dashboard/README.md)), git needs a name and email once, and the first push asks you to sign in to GitHub:
 
 ```
 git config --global user.name "<name>"
