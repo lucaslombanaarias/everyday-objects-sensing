@@ -12,13 +12,11 @@ loose), which it has not seen. Prints:
   on the behind-seat trials only.
 
 Events and labels. Every trial is measured against its session's noise baseline. An ice
-event is a drop: on 2026-11-04 the events tagged true_impact (5 per trial, 45 in all). The
-2026-11-11 events are not tagged, so its 15 drops are listed in DROPS_2026_11_11, picked by
-the rhythm of each trial (the 5 loudest events, 2 to 4 s apart); second hits and splashes
-after a drop are left out, as on 2026-11-04. These drop times have not been checked against
-the dashboard or a video. A pour event is any det-v1 event of a stream trial that is not
-flagged edge; det-v1 marks the peaks of the continuous splash, 11 to 33 per pour. Events
-with less than 0.35 s of recording before them or 0.18 s after are left out.
+event is a drop: an event tagged true_impact in analysis/<date>/events_<trial>.csv, 5 per
+ice trial (45 on 2026-11-04, 15 on 2026-11-11); the second hits and splashes after a drop
+are tagged other_noise and left out. A pour event is any det-v1 event of a stream trial that
+is not flagged edge; det-v1 marks the peaks of the continuous splash, 11 to 33 per pour.
+Events with less than 0.35 s of recording before them or 0.18 s after are left out.
 
 What this does and does not show: ice and water were recorded in separate trials, so a drop
 during a pour is not tested, and ice and poured water stand in for the real thing.
@@ -38,21 +36,12 @@ TRAIN = ("2026-11-04", "toilet_base_noise_01")
 TEST = ("2026-11-11", "Base_noise_01")
 """(session folder, its noise baseline)."""
 POSITIONS = ("base", "behindseat", "tanklid")
-DROPS_2026_11_11 = {
-    "enclosed toilet behind seat_1m_01": (3.834, 6.89, 11.117, 14.207, 17.561),
-    "enclosed toilet behind seat_1m_02": (3.053, 5.783, 8.472, 10.846, 13.241),
-    "enclosed toilet behind seat_1m_03": (1.925, 5.16, 8.413, 10.847, 12.97),
-}
-"""det-v1 event times (s) taken as the 5 drops of each 2026-11-11 ice trial; see above."""
 
 
-def _kind(date: str, trial: str, meta: dict, event: dict) -> str | None:
+def _kind(meta: dict, event: dict) -> str | None:
     """"ice", "pour", or None for an event that is neither a drop nor part of a pour."""
     if meta["excitation"]["type"] == "water_pour":
         return None if event["flag"] == "edge" else "pour"
-    if date == TEST[0]:
-        return "ice" if any(abs(float(event["t_s"]) - t) < 0.01
-                            for t in DROPS_2026_11_11[trial]) else None
     return "ice" if event["annotation"] == "true_impact" else None
 
 
@@ -71,7 +60,7 @@ def collect(date: str, noise_id: str) -> list[dict]:
         position = path.stem.split("_")[1] if date == TRAIN[0] else "behindseat"
         with (analysis / f"events_{path.stem}.csv").open(newline="") as f:
             for event in csv.DictReader(f):
-                kind, t = _kind(date, path.stem, meta, event), float(event["t_s"])
+                kind, t = _kind(meta, event), float(event["t_s"])
                 if kind is None or not ec.measurable(t, level):
                     continue
                 rows.append({"trial": path.stem, "position": position, "kind": kind, "t_s": t,

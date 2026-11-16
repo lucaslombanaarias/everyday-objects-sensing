@@ -95,6 +95,17 @@ Edits after recording, each noted in the trial's `edit_note` with the original I
 
 Figures: one plot per trial and `summary_found_vs_made.png` in `figures/2026-11-04/` (`python scripts/plot_trials.py data/controlled/raw/2026-11-04`). Slide figures in `docs/figures/`, each for the ice drops alone (`toilet_ice_*.png`), the stream trials alone (`toilet_stream_*.png`) and both side by side (`toilet_*.png`): `levels` (every drop's and pour's level by position, against the position's own background) and `traces` (the second trial at each position, as the detector sees it), and `toilet_ice_counts.png` (the events det-v1 found in each ice trial: its 5 drops and the other events), from `python scripts/plot_toilet_slide_figures.py`, and `wavelet` (Morlet scalograms of the median drop and of a stream trial at each position, on one dB scale per figure) from `wavelet_toilet()` in `matlab/wavelet/`. In the scalograms the base's background before the pour is a steady band at 4 to 5 kHz, the sensor's datasheet resonance: the hiss above is there.
 
+## 2026-11-11: toilet, sensor in its enclosure behind the seat
+
+Folder `2026-11-11`, 18:01 to 18:12. The sensor is in its enclosure behind the seat, mount `loose`. The trials keep the IDs they were recorded under, which contain spaces: `enclosed toilet behind seat_1m_<nn>` are ice trials (excitation `ice_drop`, 5 cubes per trial, `drop_height_cm` 5.0) and `enclosed toilet behind seat water_1m_<nn>` are stream trials (`water_pour`); the `1m` in the IDs and the `distance_m` of 1.0 are form defaults, not a measured distance. The sidecars' notes say only "11/11". `Base_noise_01` (6.7 s, no false alarms) is the noise baseline of all six trials.
+
+| Trial | Found | Tagged |
+|---|---|---|
+| Ice 1, 2, 3 | 16, 11, 12 / 5 made | 5 `true_impact` each; 11, 6 and 7 `other_noise` |
+| Stream 1, 2, 3 | 33, 22, 29 | not reviewed |
+
+The drops were tagged on 2026-11-16 from the detection level, as on 2026-11-04: each ice trial has 5 groups of events 2.1 to 4.2 s apart, one per cube, and the drop is the first event of its group (35 to 57 dB); the team confirmed 5 drops per trial. Every other event of the ice trials is tagged `other_noise`. Four of them are loud and come 0.35 to 0.9 s after a drop (4.19 and 4.72 s in ice 1, 3.69 s in ice 2, 9.02 s in ice 3; 30 to 46 dB), taken as a second hit or a splash of the same cube; the ones at 4.72 s and 9.02 s are louder than the weakest drop of their trial, so the drops are told by their timing, not by level alone. There is no video. The tags were written to `events_<trial>.csv`, the tag counts in `impacts_counts.csv` and the three `.analysis.json` files; nothing else was regenerated. `scripts/toilet_ice_vs_pour.py` uses these tags.
+
 ## 2026-11-12: drops and walking at 1, 2 and 3 m, carpet and wood
 
 Folder `2026-11-12`, 11:33 to 12:00, recorded on COM3 and shared by Elsa. Trial IDs are `<control|walking>_disk_<floor>_<radius>m_<nn>`, three trials per floor and radius. `control` trials are recorded as excitation `drop_stand` and are 1.8 to 4.1 s long; `walking` trials are 5.4 to 6.2 s long. The recordings do not say what `disk` refers to, and the drop height, mass, tip, sensor mount, operator and the number of drops or steps made are all empty, so impacts made is null and there is no found against made comparison. In recording order:
