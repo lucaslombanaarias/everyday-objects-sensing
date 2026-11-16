@@ -5,9 +5,9 @@
   "start_time": "2026-11-12T11:57:16.380-06:00",
   "noise_only": false,
   "operator": null,
-  "floor_material": null,
+  "floor_material": "wood",
   "floor_location": null,
-  "distance_m": null,
+  "distance_m": 3.0,
   "excitation": {
     "type": "drop_stand",
     "mass_g": null,
@@ -55,5 +55,6 @@
     "numpy": "2.5.4",
     "scipy": "1.18.1",
     "pyserial": "3.5"
-  }
+  },
+  "edit_note": "2026-11-16: filled from the trial name: floor_material None to 'wood', distance_m None to 3.0"
 }

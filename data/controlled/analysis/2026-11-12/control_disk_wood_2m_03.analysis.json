@@ -1,6 +1,6 @@
 {
   "trial_id": "control_disk_wood_2m_03",
-  "analyzed_at": "2026-11-12T12:00:28-06:00",
+  "analyzed_at": "2026-11-16T10:42:33-06:00",
   "detection": {
     "version": "det-v1",
     "highpass_hz": 100.0,
@@ -16,7 +16,7 @@
   },
   "excitation": "drop_stand",
   "excitation_point_id": null,
-  "distance_m": null,
+  "distance_m": 2.0,
   "mount": null,
   "impacts_made": null,
   "impacts_found": 2,
@@ -36,7 +36,7 @@
     "above 100 Hz (5 ms)": 2.6549295598380356,
     "100-500 Hz": 1.0730841980600765,
     "500-2000 Hz": 1.8210417983105296,
-    "2-8 kHz": 1.3819915804082084
+    "2-8 kHz": 1.381991580408217
   },
   "edge_s": 1.0,
   "events": [

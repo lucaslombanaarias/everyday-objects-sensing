@@ -1,13 +1,13 @@
 {
   "meta_version": 2,
-  "trial_id": "control_disk_walking_carpet_2m_01",
+  "trial_id": "walking_disk_carpet_2m_01",
   "date": "2026-11-12",
   "start_time": "2026-11-12T11:43:18.804-06:00",
   "noise_only": false,
   "operator": null,
-  "floor_material": null,
+  "floor_material": "carpet",
   "floor_location": null,
-  "distance_m": null,
+  "distance_m": 2.0,
   "excitation": {
     "type": "walking",
     "mass_g": null,
@@ -47,13 +47,14 @@
     "ok": true
   },
   "files": {
-    "csv": "control_disk_walking_carpet_2m_01.csv",
-    "mat": "control_disk_walking_carpet_2m_01.mat"
+    "csv": "walking_disk_carpet_2m_01.csv",
+    "mat": "walking_disk_carpet_2m_01.mat"
   },
   "software": {
     "python": "3.15.2",
     "numpy": "2.5.4",
     "scipy": "1.18.1",
     "pyserial": "3.5"
-  }
+  },
+  "edit_note": "2026-11-16: renamed from control_disk_walking_carpet_2m_01 to walking_disk_carpet_2m_01: the files were renamed before sharing and the sidecar and .mat still carried the recorded ID; 2026-11-16: filled from the trial name: floor_material None to 'carpet', distance_m None to 2.0"
 }
