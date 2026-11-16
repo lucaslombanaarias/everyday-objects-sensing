@@ -1,0 +1,68 @@
+{
+  "trial_id": "trial_02",
+  "analyzed_at": "2026-11-12T11:24:54-06:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": null,
+  "excitation_point_id": null,
+  "distance_m": null,
+  "mount": null,
+  "impacts_made": null,
+  "impacts_found": 3,
+  "difference": null,
+  "edge_events": 2,
+  "true_impact": 0,
+  "walk_in_out": 0,
+  "other_noise": 0,
+  "unknown": 0,
+  "unreviewed": 3,
+  "baseline_used": "quietest 2 s of the trial",
+  "baseline_recorded": null,
+  "baseline_mismatch": false,
+  "duration_s": 2.392,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 29.85589899259943,
+    "100-500 Hz": 96.56467489732427,
+    "500-2000 Hz": 7.6412401706227175,
+    "2-8 kHz": 1.245930722615104
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 0.765,
+      "timestamp": "2026-11-12T11:24:52.843-06:00",
+      "peak_db": 33.0,
+      "flag": "edge",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 2,
+      "t_s": 1.222,
+      "timestamp": "2026-11-12T11:24:53.300-06:00",
+      "peak_db": 32.94,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 3,
+      "t_s": 1.507,
+      "timestamp": "2026-11-12T11:24:53.585-06:00",
+      "peak_db": 35.47,
+      "flag": "edge",
+      "annotation": "unreviewed"
+    }
+  ]
+}
