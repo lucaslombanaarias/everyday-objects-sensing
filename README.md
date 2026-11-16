@@ -138,3 +138,22 @@ Magnitude response of the filter against the spec, with the sensor's datasheet r
 A synthetic 4.2 kHz tone decimated naively (top) folds to 300 Hz, inside the kept band; through the filter and `decimate()` (bottom) it is suppressed:
 
 ![Aliasing of a 4.2 kHz tone with and without the filter](docs/figures/aliasing_demo.png)
+
+## Trade show poster analysis (2026-11-17)
+
+Three analyses made for the poster from trials already in `data/controlled/`, and the poster's figures. Each script prints the numbers it finds; its docstring gives the method and what the result does not show.
+
+```
+python scripts/step_detection_range.py
+python scripts/toilet_ice_vs_pour.py
+python scripts/drop_bounce.py
+python scripts/plot_poster_figures.py
+```
+
+- **How far away a step is detected** (`step_detection_range.py`, the 35 hand-reviewed walking trials of 2026-10-21). Steps at or above the det-v1 threshold: on wood every step at 1, 2 and 3 m, bare and enclosed; on carpet, bare 30 of 30, 29 of 30 and 24 of 29, enclosed 30 of 30, 25 of 30 and 21 of 30. A fit of step level against log distance puts the distance for 90% of steps on carpet at about 2.5 m bare and 2.1 m enclosed. Only 1, 2 and 3 m were walked, so those two distances are estimates between measured points, and the enclosed one sits above what was measured at 2 m (83%).
+- **Ice drop against water pour** (`toilet_ice_vs_pour.py`, with `everyday_sensing.event_classifier`). A logistic regression on 8 features of each det-v1 event, trained on the 2026-11-04 trials (bare sensor, three positions), labels 99 of 99 events of the 2026-11-11 trials (sensor enclosed behind the seat, mounted loose; 15 ice drops and 84 pour events). With each 2026-11-04 trial held out in turn it labels 209 of 212. Trained on the 2026-11-04 behind-seat trials alone it labels 82 of 99, so training across positions matters. The 15 drops of 2026-11-11 are not tagged in the dashboard; the script lists the event times it takes as drops, picked by rhythm and not yet checked. Ice and water were recorded in separate trials, so a drop during a pour is not tested.
+- **Bounce of the drop stand** (`drop_bounce.py`, the 4 in drops of 2026-10-21). The time from the impact to the first bounce gives the restitution of the floor: a median of 0.25 on carpet and 0.40 on wood with the bare sensor. On wood it is 0.40 in the bare block and 0.50 in the enclosed block (Mann-Whitney p = 0.005). The sensor is 1 to 3 m from the drop and cannot change the bounce, so the excitation differed between those two blocks, and a bare-against-enclosed difference on wood is not the enclosure alone.
+
+`plot_poster_figures.py` writes the five figures to `docs/figures/poster_*.png`, sized and lettered for a 32 x 40 in print. The ice-against-pour figure:
+
+![Ice drops against a water pour: the signal, each event, and the test on a new session](docs/figures/poster_toilet_model.png)
