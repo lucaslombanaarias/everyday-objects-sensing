@@ -56,3 +56,72 @@ def test_staged_changes_tells_new_trials_from_updated_ones(tmp_path, monkeypatch
     write_trial(dst, "toilet_base_ice_01", "toilet", notes="edited")
     git(tmp_path, "add", ".")
     assert share_trials.staged_changes(dst) == ({"toilet_base_pour_01": "toilet"}, True)
+
+
+def write_recording(folder: Path, trial: str, start: str) -> None:
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / f"{trial}.json").write_text(
+        json.dumps({"trial_id": trial, "start_time": start, "floor_material": "wood"}),
+        encoding="utf-8")
+    (folder / f"{trial}.mat").write_bytes(b"mat")
+
+
+def test_deleted_from_repo_finds_only_the_deleted_recording(tmp_path, monkeypatch):
+    monkeypatch.setattr(share_trials, "REPO", tmp_path)
+    dst = tmp_path / "data" / "controlled" / "raw" / "2026-11-11"
+    local = tmp_path / "data" / "raw" / "2026-11-11"
+    git(tmp_path, "init", "-q")
+    write_recording(dst, "dummy_01", "2026-11-11T17:00:00.000-06:00")
+    write_recording(dst, "kept_01", "2026-11-11T17:05:00.000-06:00")
+    git(tmp_path, "add", ".")
+    git(tmp_path, "commit", "-q", "-m", "share")
+    git(tmp_path, "rm", "-q", str(dst / "dummy_01.json"), str(dst / "dummy_01.mat"))
+    git(tmp_path, "commit", "-q", "-m", "remove the dummy")
+
+    write_recording(local, "dummy_01", "2026-11-11T17:00:00.000-06:00")
+    write_recording(local, "kept_01", "2026-11-11T17:05:00.000-06:00")
+    write_recording(local, "new_01", "2026-11-11T17:10:00.000-06:00")
+    sidecars = sorted(local.glob("*.json"))
+    assert share_trials.deleted_from_repo(sidecars, dst) == ["dummy_01"]
+
+    # A new recording that reuses the deleted name is not the deleted trial.
+    write_recording(local, "dummy_01", "2026-11-11T18:00:00.000-06:00")
+    assert share_trials.deleted_from_repo(sidecars, dst) == []
+
+
+def test_share_does_not_put_back_a_deleted_trial(tmp_path, monkeypatch):
+    remote, repo = tmp_path / "remote.git", tmp_path / "clone"
+    git(tmp_path, "init", "-q", "--bare", "-b", "main", str(remote))
+    git(tmp_path, "clone", "-q", str(remote), str(repo))
+    for key in ("AUTHOR", "COMMITTER"):
+        monkeypatch.setenv(f"GIT_{key}_NAME", "test")
+        monkeypatch.setenv(f"GIT_{key}_EMAIL", "test@example.com")
+    monkeypatch.setattr(share_trials, "REPO", repo)
+    monkeypatch.setattr(share_trials, "DEFAULT_OUT_DIR", repo / "data" / "raw")
+    monkeypatch.setattr(share_trials, "CONTROLLED", repo / "data" / "controlled")
+    (repo / ".gitignore").write_text("data/raw/\ndata/analysis/\n", encoding="utf-8")
+    git(repo, "add", ".")
+    git(repo, "commit", "-q", "-m", "start")
+    git(repo, "push", "-q", "-u", "origin", "HEAD:main")
+
+    local = repo / "data" / "raw" / "2026-11-11"
+    write_recording(local, "dummy_01", "2026-11-11T17:00:00.000-06:00")
+    analysis = repo / "data" / "analysis" / "2026-11-11"
+    analysis.mkdir(parents=True)
+    (analysis / "dummy_01.analysis.json").write_text("{}", encoding="utf-8")
+    (analysis / "events_dummy_01.csv").write_text("event\n", encoding="utf-8")
+    share_trials.main(["2026-11-11"])
+    dst = repo / "data" / "controlled" / "raw" / "2026-11-11"
+    git(repo, "rm", "-q", "-r", str(dst), str(repo / "data" / "controlled" / "analysis"))
+    git(repo, "commit", "-q", "-m", "remove the dummy")
+    git(repo, "push", "-q")
+
+    write_recording(local, "trial_01", "2026-11-11T17:05:00.000-06:00")
+    (analysis / "trial_01.analysis.json").write_text("{}", encoding="utf-8")
+    share_trials.main(["2026-11-11"])
+    assert sorted(p.name for p in dst.iterdir()) == ["trial_01.json", "trial_01.mat"]
+    shared_analysis = repo / "data" / "controlled" / "analysis" / "2026-11-11"
+    assert sorted(p.name for p in shared_analysis.iterdir()) == ["trial_01.analysis.json"]
+
+    share_trials.main(["2026-11-11"])  # sharing again changes nothing
+    assert sorted(p.name for p in dst.iterdir()) == ["trial_01.json", "trial_01.mat"]

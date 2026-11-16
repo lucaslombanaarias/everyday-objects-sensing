@@ -10,9 +10,11 @@ data/controlled/analysis/<date>/, then commits and pushes. The commit message sa
 new, e.g. "Add 19 toilet trials from 2026-11-04", or that the day's trials or their analysis
 were updated; --message gives one instead. Trials already published under another name
 (renamed after sharing) are skipped, and so are the folder's day-wide summary CSVs then,
-since they carry the old names. Nothing is shared when a trial's name is already taken in
-data/controlled/ by a different recording (another computer's trial_01, say): rename it
-first.
+since they carry the old names. Trials that were shared and later deleted from
+data/controlled/ (a dummy recording, say) are skipped the same way, so a computer that
+still has them does not put them back; --include-deleted shares them anyway. Nothing is
+shared when a trial's name is already taken in data/controlled/ by a different recording
+(another computer's trial_01, say): rename it first.
 
 Without an argument it takes the newest day in this clone's data/raw/; give a date for
 another day, or the path of any folder of trials (one recorded in another copy of the repo
@@ -61,6 +63,33 @@ def published_under_other_names(sidecars: list[Path], dst: Path) -> list[tuple[s
         if published.get(start, p.stem) != p.stem:
             pairs.append((p.stem, published[start]))
     return pairs
+
+
+def deleted_from_repo(sidecars: list[Path], dst: Path) -> list[str]:
+    """Trial IDs among sidecars that were shared to dst and later deleted there: the last
+    commit that deleted dst/<trial>.json had a sidecar with the same start_time. A new
+    recording that reuses a deleted trial's name (another start time) is not one."""
+    deleted = []
+    for p in sidecars:
+        shared = dst / p.name
+        if shared.exists():
+            continue
+        rel = shared.relative_to(REPO).as_posix()
+        commit = subprocess.run(
+            ["git", "log", "-1", "--diff-filter=D", "--format=%H", "--", rel],
+            cwd=REPO, capture_output=True, text=True, check=False).stdout.strip()
+        if not commit:
+            continue
+        before = subprocess.run(["git", "show", f"{commit}^:{rel}"], cwd=REPO,
+                                capture_output=True, text=True, check=False)
+        try:
+            theirs = json.loads(before.stdout).get("start_time")
+        except ValueError:
+            continue
+        mine = json.loads(p.read_text(encoding="utf-8")).get("start_time")
+        if mine == theirs:
+            deleted.append(p.stem)
+    return deleted
 
 
 def taken_by_other_recordings(sidecars: list[Path], dst: Path) -> list[str]:
@@ -114,6 +143,9 @@ def main(argv=None):
                         help="a date in data/raw/ or a folder of trials; default: the newest day")
     parser.add_argument("--message", "-m",
                         help="commit message (default: says what is new or updated)")
+    parser.add_argument("--include-deleted", action="store_true",
+                        help="also share trials that were shared before and then deleted "
+                             "from data/controlled/")
     args = parser.parse_args(argv)
 
     day = find_day(args.day)
@@ -136,6 +168,14 @@ def main(argv=None):
               f"{renamed[0][0]} as {renamed[0][1]}")
         if not trials:
             raise SystemExit("nothing new to share")
+    deleted = [] if args.include_deleted else deleted_from_repo(
+        [p for p in trials if p.suffix == ".json"], dst)
+    if deleted:
+        trials = [f for f in trials if f.stem not in deleted]
+        print(f"skipping {', '.join(deleted)}: shared before and then deleted from {dst} "
+              "(trash it in the Recordings tab, or give --include-deleted to share it again)")
+        if not trials:
+            raise SystemExit("nothing new to share")
     clashes = taken_by_other_recordings([p for p in trials if p.suffix == ".json"], dst)
     if clashes:
         raise SystemExit(
@@ -149,7 +189,7 @@ def main(argv=None):
     # Where everyday_sensing.impacts.analysis_folder puts the det-v1 outputs for the day.
     analysis = day.parent.parent / "analysis" / day.name if day.parent.name == "raw" else (
         day / "analysis")
-    if analysis.is_dir() and renamed:
+    if analysis.is_dir() and (renamed or deleted):
         new = {f.stem for f in trials}
         files = [f for f in analysis.glob("*") if f.name.removeprefix("events_").split(".")[0]
                  in new]
