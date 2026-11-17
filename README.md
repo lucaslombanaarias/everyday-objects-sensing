@@ -2,6 +2,16 @@
 
 AI Design Catalog prototype (live site): https://lucaslombanaarias.github.io/everyday-objects-sensing/
 
+## Open the dashboard
+
+The dashboard is the app that shows the sensor live and records trials. It runs on the laptop, not on a website.
+
+1. Plug the sensor board into the laptop's USB port.
+2. Open the `everyday-objects-sensing` folder and double-click **`dashboard.bat`**.
+3. Wait up to a minute for the window to appear. It finds the board by itself.
+
+If it does not start, the black window stays open and says why. First time on this laptop? Follow [Setting up a new laptop](#setting-up-a-new-laptop) once first.
+
 ## Setting up a new laptop
 
 To record with the PCM dashboard on a Windows laptop that has never run this repo. The board keeps its firmware, so the Arduino IDE is only needed to reflash it.
