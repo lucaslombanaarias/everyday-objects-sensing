@@ -12,18 +12,27 @@ dependencies = [
     "numpy>=2.4.6",
     "scipy>=1.17.1",
     "matplotlib>=3.11.2",
+    "pyserial>=3.5",
 ]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
-pythonpath = ["src"]
+pythonpath = ["src", "tools/dashboard"]
 testpaths = ["tests"]
 
 [tool.ruff]
 line-length = 100
 target-version = "py314"
+src = ["src", "tools/dashboard"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "NPY"]
+
+[tool.ruff.lint.per-file-ignores]
+# Lab scripts are kept as delivered; only style rules are relaxed.
+"tools/dashboard/*.py" = ["E501", "E731", "B023", "B905"]
+"firmware/vpu_lab_demo/receiver.py" = ["I001"]
+# The catalog backend is written in a compact one-line style.
+"prototype/ai-design-catalog/*.py" = ["E401", "E501", "E701", "E702", "I001"]

@@ -145,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
             reply=' '.join(p.get('text','') for p in parts).strip()
             return self.respond(200,{'reply':reply or 'No response available. Please try again.'})
         except (ValueError,KeyError,TypeError,json.JSONDecodeError) as e:return self.fail(400,str(e))
-        except (urllib.error.URLError,TimeoutError,IndexError) as e:return self.fail(502,'AI provider unavailable or request failed')
+        except (urllib.error.URLError,TimeoutError,IndexError):return self.fail(502,'AI provider unavailable or request failed')
 
 if __name__=='__main__':
     init()
