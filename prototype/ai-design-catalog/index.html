@@ -64,10 +64,13 @@ function modelPreview(d){
  return '<img src="'+esc(d.thumbnail_url)+'" alt="'+esc(d.title)+'" style="display:block;width:100%;height:100%;object-fit:contain">';
 }
 
-// Backend integration: replace demo concepts with only curator-approved designs when served via server.py.
+// The local server supplies live entries. GitHub Pages uses the published export.
 async function connectCatalog(){
   try {
-    const response=await fetch('/api/designs',{cache:'no-store'});
+    const apiResponse=await fetch('/api/designs',{cache:'no-store'}).catch(()=>null);
+    const response=apiResponse&&apiResponse.ok
+      ?apiResponse
+      :await fetch('./catalog.json',{cache:'no-store'});
     if(!response.ok) return;
     const data=await response.json();
     if(!Array.isArray(data.designs))return;
@@ -85,7 +88,7 @@ async function connectCatalog(){
     for(const id of Object.keys(plan))if(!designs.some(d=>d.id===id))delete plan[id];
     savePlan();
     const p=document.querySelector('#catalog .lead');
-    if(p)p.textContent='Browse designs published by the Ubihealth research team. Only active records appear here.';
+    if(p)p.textContent='Browse designs published by the Ubihealth research team.';
     const oldCard=card;
     card=function(d){const raw=oldCard(d);const thumb=d.thumbnail_url?modelPreview(d):d.icon;return raw.replace('<div class="thumb">'+d.icon+'</div>','<div class="thumb">'+thumb+'</div>')};
     const oldShowDetail=showDetail;
@@ -98,7 +101,7 @@ async function connectCatalog(){
       holder.append(links);
     };
     renderCatalog();
-  }catch(e){if(location.protocol!=='file:'){designs.splice(0);renderCatalog();document.getElementById('catalogCount').textContent='Catalog unavailable. Please reload to try again.'}}
+  }catch(e){console.warn('Unable to load the catalog.',e)}
 }
 // Use the free-tier-compatible Gemini backend if configured; otherwise preserve the demo assistant.
 const demoSendChat=sendChat;

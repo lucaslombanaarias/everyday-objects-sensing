@@ -1,0 +1,177 @@
+{
+  "designs": [
+    {
+      "id": "discrete-floor-enclosure",
+      "title": "Discrete floor enclosure",
+      "description": "Discrete floor enclosure. User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Floor",
+      "design_class": "Hidden",
+      "rooms": [
+        "Living room",
+        "Bedroom"
+      ],
+      "style": "Minimal",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Placement and mounting to be confirmed.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/discrete-floor-enclosure.png"
+    },
+    {
+      "id": "plant-pot-spiral",
+      "title": "Plant pot (spiral)",
+      "description": "Plant pot (spiral). User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Floor",
+      "design_class": "Decorative",
+      "rooms": [
+        "Living room",
+        "Bedroom"
+      ],
+      "style": "Decorative",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Placement and mounting to be confirmed.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/plant-pot-spiral.png"
+    },
+    {
+      "id": "plant-pot-square-holes",
+      "title": "Plant pot (square holes)",
+      "description": "Plant pot (square holes). User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Floor",
+      "design_class": "Decorative",
+      "rooms": [
+        "Living room",
+        "Bedroom"
+      ],
+      "style": "Decorative",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Placement and mounting to be confirmed.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/plant-pot-square-holes.png"
+    },
+    {
+      "id": "spiral-vase",
+      "title": "Spiral vase",
+      "description": "Spiral vase. User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Floor",
+      "design_class": "Decorative",
+      "rooms": [
+        "Living room",
+        "Bedroom"
+      ],
+      "style": "Decorative",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Placement and mounting to be confirmed.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/spiral-vase.png"
+    },
+    {
+      "id": "small-clear-vase",
+      "title": "Small clear vase",
+      "description": "Small clear vase. User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Floor",
+      "design_class": "Decorative",
+      "rooms": [
+        "Living room",
+        "Bedroom"
+      ],
+      "style": "Decorative",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Placement and mounting to be confirmed.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/small-clear-vase.png"
+    },
+    {
+      "id": "discrete-toilet-enclosure",
+      "title": "Discrete toilet enclosure",
+      "description": "Discrete toilet enclosure. User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Toilet",
+      "design_class": "Hidden",
+      "rooms": [
+        "Bathroom"
+      ],
+      "style": "Minimal",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Placement and mounting to be confirmed.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/discrete-toilet-enclosure.png"
+    },
+    {
+      "id": "toilet-enclosure-behind-hinge",
+      "title": "Toilet enclosure behind hinge",
+      "description": "Toilet enclosure behind hinge. User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Toilet",
+      "design_class": "Hidden",
+      "rooms": [
+        "Bathroom"
+      ],
+      "style": "Minimal",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Behind the toilet seat hinge; see red circle.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/toilet-enclosure-behind-hinge.png"
+    },
+    {
+      "id": "toilet-enclosure-in-seat",
+      "title": "Toilet enclosure in seat",
+      "description": "Toilet enclosure in seat. User-supplied CAD prototype; dimensions, print material, and sensor compatibility have not been verified.",
+      "context": "Toilet",
+      "design_class": "Hidden",
+      "rooms": [
+        "Bathroom"
+      ],
+      "style": "Minimal",
+      "creator": "Not provided",
+      "source_url": "",
+      "license": "Not provided; redistribution permission unverified",
+      "dimensions": "",
+      "material": "",
+      "installation_notes": "Installation and sensor coupling require team verification.",
+      "mounting_method": "Inside the toilet seat; see red circle.",
+      "cable_notes": "",
+      "sensor_fit_status": "Unverified prototype",
+      "thumbnail_url": "./thumbnails/toilet-enclosure-in-seat.png"
+    }
+  ]
+}
