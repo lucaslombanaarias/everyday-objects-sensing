@@ -141,6 +141,8 @@ A synthetic 4.2 kHz tone decimated naively (top) folds to 300 Hz, inside the kep
 
 ## Trade show poster analysis (2026-11-17)
 
+The poster as printed is [docs/poster/ME470_Trade_Show_Poster.pptx](docs/poster/ME470_Trade_Show_Poster.pptx) (32 x 40 in).
+
 Three analyses made for the poster from trials already in `data/controlled/`, and the poster's figures. Each script prints the numbers it finds; its docstring gives the method and what the result does not show.
 
 ```
