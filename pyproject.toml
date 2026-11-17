@@ -34,3 +34,5 @@ select = ["E", "F", "W", "I", "B", "NPY"]
 # Lab scripts are kept as delivered; only style rules are relaxed.
 "tools/dashboard/*.py" = ["E501", "E731", "B023", "B905"]
 "firmware/vpu_lab_demo/receiver.py" = ["I001"]
+# The catalog backend is written in a compact one-line style.
+"prototype/ai-design-catalog/*.py" = ["E401", "E501", "E701", "E702", "I001"]
