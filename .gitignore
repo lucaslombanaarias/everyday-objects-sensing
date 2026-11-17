@@ -189,6 +189,7 @@ cython_debug/
 # .idea/
 
 # Abstra
+#   Abstra is an AI-powered process automation framework.
 #   Ignore directories containing user credentials, local state, and settings.
 #   Learn more at https://abstra.io/docs
 .abstra/
@@ -220,16 +221,3 @@ __marimo__/
 data/raw/
 *.wav
 *.bin
-!tests/fixtures/*.bin
-
-# Dashboard recordings and snapshots, TCP receiver captures
-recordings/
-*.png
-!docs/figures/*.png
-!results/**/*.png
-!data/footsteps/**/*.png
-!data/controlled/**/*.png
-data/vpu_tcp_*.csv
-
-# Analysis outputs (events, tags, per-trial analysis), derived from data/raw
-data/analysis/

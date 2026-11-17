@@ -15,7 +15,7 @@ On macOS/Linux, use `export ADMIN_TOKEN='...'` instead of `$env:`.
 
 ## Real CAD catalog workflow
 
-1. Go to `/admin.html`, paste your terminal's admin token, and select a CAD file or thumbnail (STL, STEP, STP, OBJ, PNG, JPG, WEBP; 5 MB max).
+1. Go to `/admin.html`, paste your terminal's admin token, and select a CAD file or thumbnail (STL, STEP, STP, OBJ, PNG, JPG, WEBP; 15 MB max).
 2. Click Upload; copy the returned `/uploads/...` path into Model file URL or Thumbnail URL.
 3. Complete metadata and save as **draft** while unverified.
 4. Set status to **active** only after approval and compatibility checks. Only active records are visible in the public catalog and AI context.

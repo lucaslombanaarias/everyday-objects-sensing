@@ -1,0 +1,276 @@
+{
+  "trial_id": "enclosed toilet behind seat water_1m_03",
+  "analyzed_at": "2026-11-11T18:12:01-06:00",
+  "detection": {
+    "version": "det-v1",
+    "highpass_hz": 100.0,
+    "filter_order": 4,
+    "filter": "Butterworth high-pass, causal, started settled at the first sample",
+    "window_s": 0.005,
+    "rate_hz": 1000.0,
+    "threshold_db": 14.0,
+    "min_gap_s": 0.25,
+    "baseline_skip_s": 1.0,
+    "quiet_window_s": 2.0,
+    "criterion": "det-v1: local maxima of the RMS over a 5 ms detection window of the signal high-passed at 100 Hz (4th-order Butterworth high-pass, causal, started settled at the first sample), evaluated 1000 times per second, at least 14 dB above the noise baseline; of peaks closer than 0.25 s only the highest is kept. Baseline: median detection level of the latest noise-only trial at or before the trial (any noise-only trial if none precedes it), skipping its first 1 s; else the quietest 2 s of the trial."
+  },
+  "excitation": "water_pour",
+  "excitation_point_id": null,
+  "distance_m": 1.0,
+  "mount": "loose",
+  "impacts_made": null,
+  "impacts_found": 29,
+  "difference": null,
+  "edge_events": 0,
+  "true_impact": 0,
+  "walk_in_out": 0,
+  "other_noise": 0,
+  "unknown": 0,
+  "unreviewed": 29,
+  "baseline_used": "Base_noise_01",
+  "baseline_recorded": "Base_noise_01",
+  "baseline_mismatch": false,
+  "duration_s": 14.52,
+  "false_alarms_per_min": null,
+  "baseline_counts": {
+    "above 100 Hz (5 ms)": 2.932381599098788,
+    "100-500 Hz": 1.7006502197777325,
+    "500-2000 Hz": 1.061749149932158,
+    "2-8 kHz": 1.8363325079736454
+  },
+  "edge_s": 1.0,
+  "events": [
+    {
+      "event": 1,
+      "t_s": 2.383,
+      "timestamp": "2026-11-11T18:11:46.673-06:00",
+      "peak_db": 24.28,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 2,
+      "t_s": 2.814,
+      "timestamp": "2026-11-11T18:11:47.104-06:00",
+      "peak_db": 40.13,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 3,
+      "t_s": 3.249,
+      "timestamp": "2026-11-11T18:11:47.539-06:00",
+      "peak_db": 36.73,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 4,
+      "t_s": 3.511,
+      "timestamp": "2026-11-11T18:11:47.801-06:00",
+      "peak_db": 28.36,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 5,
+      "t_s": 3.837,
+      "timestamp": "2026-11-11T18:11:48.127-06:00",
+      "peak_db": 41.15,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 6,
+      "t_s": 4.097,
+      "timestamp": "2026-11-11T18:11:48.387-06:00",
+      "peak_db": 15.78,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 7,
+      "t_s": 4.359,
+      "timestamp": "2026-11-11T18:11:48.649-06:00",
+      "peak_db": 37.83,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 8,
+      "t_s": 4.61,
+      "timestamp": "2026-11-11T18:11:48.900-06:00",
+      "peak_db": 25.21,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 9,
+      "t_s": 4.877,
+      "timestamp": "2026-11-11T18:11:49.167-06:00",
+      "peak_db": 42.66,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 10,
+      "t_s": 5.154,
+      "timestamp": "2026-11-11T18:11:49.444-06:00",
+      "peak_db": 32.16,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 11,
+      "t_s": 5.567,
+      "timestamp": "2026-11-11T18:11:49.857-06:00",
+      "peak_db": 29.4,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 12,
+      "t_s": 5.831,
+      "timestamp": "2026-11-11T18:11:50.121-06:00",
+      "peak_db": 19.85,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 13,
+      "t_s": 6.123,
+      "timestamp": "2026-11-11T18:11:50.413-06:00",
+      "peak_db": 35.46,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 14,
+      "t_s": 6.416,
+      "timestamp": "2026-11-11T18:11:50.706-06:00",
+      "peak_db": 30.36,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 15,
+      "t_s": 6.733,
+      "timestamp": "2026-11-11T18:11:51.023-06:00",
+      "peak_db": 37.57,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 16,
+      "t_s": 7.054,
+      "timestamp": "2026-11-11T18:11:51.344-06:00",
+      "peak_db": 22.8,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 17,
+      "t_s": 7.405,
+      "timestamp": "2026-11-11T18:11:51.695-06:00",
+      "peak_db": 33.12,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 18,
+      "t_s": 7.823,
+      "timestamp": "2026-11-11T18:11:52.113-06:00",
+      "peak_db": 35.92,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 19,
+      "t_s": 8.238,
+      "timestamp": "2026-11-11T18:11:52.528-06:00",
+      "peak_db": 32.7,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 20,
+      "t_s": 8.734,
+      "timestamp": "2026-11-11T18:11:53.024-06:00",
+      "peak_db": 31.74,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 21,
+      "t_s": 9.015,
+      "timestamp": "2026-11-11T18:11:53.305-06:00",
+      "peak_db": 27.84,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 22,
+      "t_s": 9.329,
+      "timestamp": "2026-11-11T18:11:53.619-06:00",
+      "peak_db": 33.23,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 23,
+      "t_s": 9.588,
+      "timestamp": "2026-11-11T18:11:53.878-06:00",
+      "peak_db": 25.29,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 24,
+      "t_s": 9.896,
+      "timestamp": "2026-11-11T18:11:54.186-06:00",
+      "peak_db": 33.31,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 25,
+      "t_s": 10.285,
+      "timestamp": "2026-11-11T18:11:54.575-06:00",
+      "peak_db": 33.13,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 26,
+      "t_s": 10.751,
+      "timestamp": "2026-11-11T18:11:55.041-06:00",
+      "peak_db": 32.96,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 27,
+      "t_s": 11.12,
+      "timestamp": "2026-11-11T18:11:55.410-06:00",
+      "peak_db": 35.73,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 28,
+      "t_s": 11.455,
+      "timestamp": "2026-11-11T18:11:55.745-06:00",
+      "peak_db": 35.45,
+      "flag": "",
+      "annotation": "unreviewed"
+    },
+    {
+      "event": 29,
+      "t_s": 11.778,
+      "timestamp": "2026-11-11T18:11:56.068-06:00",
+      "peak_db": 29.98,
+      "flag": "",
+      "annotation": "unreviewed"
+    }
+  ]
+}

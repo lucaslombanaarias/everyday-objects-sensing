@@ -61,7 +61,7 @@ class Handler(BaseHTTPRequestHandler):
     def fail(self,status,msg):self.respond(status,{'error':msg})
     def read_json(self):
         size=int(self.headers.get('Content-Length','0'))
-        if size<1 or size>8_000_000:raise ValueError('Body must be 1 byte to 8 MB')
+        if size<1 or size>22_000_000:raise ValueError('Body must be 1 byte to 22 MB')
         return json.loads(self.rfile.read(size))
     def authorized(self):
         if not TOKEN or len(TOKEN)<24:return False
@@ -109,7 +109,7 @@ class Handler(BaseHTTPRequestHandler):
             ext=str(x.get('extension','')).lower().lstrip('.')
             if ext not in ('stl','step','stp','obj','png','jpg','jpeg','webp'):raise ValueError('Unsupported file extension')
             raw=base64.b64decode(x['base64'],validate=True)
-            if not raw or len(raw)>5_000_000:raise ValueError('File must be under 5 MB')
+            if not raw or len(raw)>15_000_000:raise ValueError('File must be under 15 MB')
             name=secrets.token_hex(16)+'.'+ext
             (FILES/name).write_bytes(raw)
             return self.respond(201,{'url':'/uploads/'+name})
