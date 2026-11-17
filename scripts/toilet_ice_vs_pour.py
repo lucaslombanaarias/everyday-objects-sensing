@@ -11,6 +11,12 @@ loose), which it has not seen. Prints:
 - 2026-11-11, trained on all of 2026-11-04: events labelled correctly, and the same trained
   on the behind-seat trials only.
 
+Also writes the model trained on all of 2026-11-04 to models/toilet_ice_vs_pour.json
+(everyday_sensing.event_classifier.save_model), so the fitted weights are in the repository.
+That file is an output of this script: after a change to the features, the fit, the tags or
+the trials, run the script again and commit the file with the change.
+tests/test_toilet_model.py refits the model from the trials and fails while the file differs.
+
 Events and labels. Every trial is measured against its session's noise baseline. An ice
 event is a drop: an event tagged true_impact in analysis/<date>/events_<trial>.csv, 5 per
 ice trial (45 on 2026-11-04, 15 on 2026-11-11); the second hits and splashes after a drop
@@ -36,6 +42,8 @@ TRAIN = ("2026-11-04", "toilet_base_noise_01")
 TEST = ("2026-11-11", "Base_noise_01")
 """(session folder, its noise baseline)."""
 POSITIONS = ("base", "behindseat", "tanklid")
+MODEL = REPO / "models" / "toilet_ice_vs_pour.json"
+"""The model trained on all of the TRAIN session, written by main."""
 
 
 def _kind(meta: dict, event: dict) -> str | None:
@@ -86,9 +94,24 @@ def held_out_by_trial(rows: list[dict]) -> np.ndarray:
     return p
 
 
+def fit(rows: list[dict]) -> dict:
+    """The model trained on all of rows (P(ice) from the FEATURES of an event)."""
+    return ec.fit_logistic(*_xy(rows))
+
+
 def test_on(train: list[dict], test: list[dict]) -> np.ndarray:
     """P(ice) of every test row, from a model trained on all the train rows."""
-    return ec.predict_proba(ec.fit_logistic(*_xy(train)), _xy(test)[0])
+    return ec.predict_proba(fit(train), _xy(test)[0])
+
+
+def about(train: list[dict], result: dict) -> dict:
+    """What is written with the saved model: its training events and its score on TEST."""
+    n_ice = sum(r["kind"] == "ice" for r in train)
+    return {"written_by": "scripts/toilet_ice_vs_pour.py",
+            "predicts": "P(ice drop) of a det-v1 event; above 0.5 is ice, else water pour",
+            "trained_on": {"session": TRAIN[0], "ice_drops": n_ice,
+                           "pour_events": len(train) - n_ice},
+            "tested_on": {"session": TEST[0], "correct": result["correct"], "of": result["n"]}}
 
 
 def confusion(rows: list[dict], p: np.ndarray) -> dict:
@@ -118,10 +141,13 @@ def main() -> None:
         n_ice = sum(r["kind"] == "ice" for r in rows)
         print(f"{name}: {n_ice} ice drops and {len(rows) - n_ice} pour events")
     _report(f"{TRAIN[0]}, each trial held out in turn", confusion(train, held_out_by_trial(train)))
-    _report(f"{TEST[0]}, trained on all of {TRAIN[0]}", confusion(test, test_on(train, test)))
+    result = confusion(test, test_on(train, test))
+    _report(f"{TEST[0]}, trained on all of {TRAIN[0]}", result)
     behind = [r for r in train if r["position"] == "behindseat"]
     _report(f"{TEST[0]}, trained on the {TRAIN[0]} behind-seat trials only",
             confusion(test, test_on(behind, test)))
+    ec.save_model(fit(train), MODEL, about(train, result))
+    print(f"wrote {MODEL.relative_to(REPO).as_posix()}")
 
 
 if __name__ == "__main__":

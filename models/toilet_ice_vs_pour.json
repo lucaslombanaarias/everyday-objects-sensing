@@ -1,0 +1,55 @@
+{
+  "written_by": "scripts/toilet_ice_vs_pour.py",
+  "predicts": "P(ice drop) of a det-v1 event; above 0.5 is ice, else water pour",
+  "trained_on": {
+    "session": "2026-11-04",
+    "ice_drops": 45,
+    "pour_events": 167
+  },
+  "tested_on": {
+    "session": "2026-11-11",
+    "correct": 99,
+    "of": 99
+  },
+  "features": [
+    "peak_db",
+    "low_share_db",
+    "high_share_db",
+    "centroid_log_hz",
+    "crest_db",
+    "decay_s",
+    "rise_db",
+    "context_db"
+  ],
+  "mean": [
+    36.40983111,
+    -19.81403536,
+    -3.347013971,
+    3.358593854,
+    18.62407376,
+    0.04308962264,
+    22.6874734,
+    -20.72185119
+  ],
+  "scale": [
+    12.46135356,
+    9.045625934,
+    3.999405589,
+    0.2251322853,
+    11.05248263,
+    0.04849359504,
+    15.92762234,
+    16.51571619
+  ],
+  "coef": [
+    -0.621936452,
+    1.268047646,
+    0.2541395837,
+    -0.6585539717,
+    1.351447205,
+    -0.1843304059,
+    1.520382478,
+    -2.332390524
+  ],
+  "intercept": -2.441476468
+}

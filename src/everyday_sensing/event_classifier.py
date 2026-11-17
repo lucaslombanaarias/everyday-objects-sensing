@@ -1,7 +1,8 @@
 """Per-event features and a small logistic regression, for telling kinds of events apart.
 
 Used by scripts/toilet_ice_vs_pour.py to separate ice drops from the splashes of a water pour.
-Only numpy and scipy are needed.
+Only numpy and scipy are needed. save_model and load_model keep a fitted model as a JSON file
+(models/toilet_ice_vs_pour.json is the one the script writes).
 
 An event is a det-v1 detection (everyday_sensing.impacts): a time, on the trace of the
 detection level (5 ms RMS above 100 Hz, in dB above a noise baseline, 1000 values per second).
@@ -20,6 +21,9 @@ Its FEATURES are:
   500 Hz and in 2 to 8 kHz, in dB, from 20 ms before the event to 180 ms after.
 - centroid_log_hz: log10 of the power-weighted geometric mean frequency over 100 Hz to 8 kHz.
 """
+
+import json
+from pathlib import Path
 
 import numpy as np
 from scipy import optimize, signal
@@ -103,3 +107,28 @@ def predict_proba(model: dict, x) -> np.ndarray:
     """Probability of class 1 for each row of x, from a fit_logistic model."""
     z = (np.asarray(x, dtype=np.float64) - model["mean"]) / model["scale"]
     return 1 / (1 + np.exp(-(z @ model["coef"] + model["intercept"])))
+
+
+def save_model(model: dict, path, about: dict | None = None) -> None:
+    """Write a fit_logistic model to a JSON file: the FEATURES in column order, each one's
+    mean, scale and coefficient, and the intercept, to 10 significant digits. about is
+    written with it (what it was trained on, how it scored)."""
+    def digits(values):
+        return [float(f"{v:.10g}") for v in np.asarray(values, dtype=np.float64)]
+
+    if len(model["coef"]) != len(FEATURES):
+        raise ValueError("save_model writes models fitted on the FEATURES columns")
+    out = {**(about or {}), "features": list(FEATURES), "mean": digits(model["mean"]),
+           "scale": digits(model["scale"]), "coef": digits(model["coef"]),
+           "intercept": float(f"{model['intercept']:.10g}")}
+    Path(path).write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8", newline="\n")
+
+
+def load_model(path) -> dict:
+    """The model of a save_model file, for predict_proba. Refuses a file whose features are
+    not the current FEATURES, in order."""
+    saved = json.loads(Path(path).read_text(encoding="utf-8"))
+    if tuple(saved["features"]) != FEATURES:
+        raise ValueError(f"{path} was saved for other features: {saved['features']}")
+    return {"mean": np.array(saved["mean"]), "scale": np.array(saved["scale"]),
+            "coef": np.array(saved["coef"]), "intercept": float(saved["intercept"])}
